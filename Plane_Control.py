@@ -16,7 +16,7 @@ it also keeps a handle to the active vessel
 class AttitudeController:
     def __init__(self, vessel):
         self.pitch_pid = PID(1/50, 1/100, 1/80, 20, -1, 1, PID_IntegralWindupMitigation.DOUBLE_WINDUP_IF_OPPOSITE_PARITY)
-        self.roll_pid = PID(1/50, 1/100, 1/60, 20, -1, 1, PID_IntegralWindupMitigation.RESET)
+        self.roll_pid = PID(1/50, 1/80, 0, 0, -1, 1)
 
         self.desired_pitch = 0
         self.desired_roll = 0
@@ -63,7 +63,6 @@ class AutoThrottle:
 
         throttle_control = self.thrust_pid.get_control(speed_error, delta_time, predictive_value=predictive_value)
         self.vessel.control.throttle = throttle_control
-        print(f"Current Speed: {current_speed:.1f}, Throttle: {throttle_control:.2f}")
 """
 Controlls heading by turning
 """
@@ -87,6 +86,7 @@ class HeadingController:
         desired_roll = clamp(roll_control * self.max_bank_angle, -self.max_bank_angle, self.max_bank_angle)
 
         self.attitude_controller.desired_roll = desired_roll
+        self.attitude_controller.update(delta_time)
 
 """
 Controls altitude by adjusting pitch
@@ -108,8 +108,7 @@ class AltitudeController:
         desired_pitch = clamp(pitch_control * self.max_pitch, -self.max_pitch, self.max_pitch)
 
         self.attitude_controller.desired_pitch = desired_pitch
-
-
+        self.attitude_controller.update(delta_time)
 
 if __name__ == "__main__":
     conn = krpc.connect(name='Plane Controller')
