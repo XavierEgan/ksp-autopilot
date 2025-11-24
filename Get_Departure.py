@@ -1,21 +1,22 @@
 import krpc
 import time
 
+from Math import LatLongLine, LatLong
+
 def print_depature_airport_info():
     conn = krpc.connect(name='Get Departure Info')
+
+    if not conn.space_center:
+        print("No space center.")
+        return
+
     vessel = conn.space_center.active_vessel
-    
-    # stage and spool up engines
-    vessel.control.activate_next_stage()
-    vessel.control.throttle = 1.0
 
-    # wait a few seconds to get stable readings
-    time.sleep(3)
+    heading = vessel.flight().heading
+    lat = vessel.flight().latitude
+    long = vessel.flight().longitude
 
-    # get the velocity direction
-    velocity_vector = list(vessel.flight(vessel.surface_reference_frame).velocity)
-    velocity_vector[1] = 0 # ignore vertical component
+    print(f"LatLongLine(LatLong({lat}, {long}), {heading})")
 
-    position_vector = list(vessel.position(vessel.orbit.body.reference_frame))
-
-    print("")
+if __name__ == "__main__":
+    print_depature_airport_info()

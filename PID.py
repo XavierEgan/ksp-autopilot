@@ -1,8 +1,6 @@
 import math
 from enum import Enum
-
-def clamp(var, low, high):
-    return max(min(var, high), low)
+from Math import clamp
 
 class PID_IntegralWindupMitigation(Enum):
     PASSIVE = 0

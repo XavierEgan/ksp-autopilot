@@ -1,5 +1,8 @@
-from Plane_Control import AttitudeController, AutoThrottle, HeadingController, AltitudeController
+from Plane_Control import AttitudeController, AutoThrottle, AltitudeController
+from Meta_Plane_Control import HeadingController, MaintainCenterlineOnGroundController, GroundHeadingController
 from PID import PID, ForwardPID
+from Math import LatLong, LatLongLine
+
 import krpc
 from enum import Enum
 import time
@@ -86,8 +89,8 @@ class TakeoffRoll(FlightPhaseController):
         print("Entering Takeoff Roll Phase")
     
     def update(self, delta_time):
-        # TODO: make sure we are on the centerline (implimented later)
-        pass
+        self.full_auto_pilot.maintain_centerline_on_ground_controller.runway = self.full_auto_pilot.flight_params.depature_runway
+        self.full_auto_pilot.maintain_centerline_on_ground_controller.update(delta_time)
 
 class Rotation(FlightPhaseController):
     def __init__(self, full_auto_pilot):
@@ -114,6 +117,9 @@ class Rotation(FlightPhaseController):
             self.full_auto_pilot.attitude_controller.desired_pitch = desired_pitch
 
         self.full_auto_pilot.attitude_controller.update(delta_time)
+
+        self.full_auto_pilot.maintain_centerline_on_ground_controller.runway = self.full_auto_pilot.flight_params.depature_runway
+        self.full_auto_pilot.maintain_centerline_on_ground_controller.update(delta_time)
 
 class Climb(FlightPhaseController):
     def __init__(self, full_auto_pilot):
@@ -148,7 +154,7 @@ class Climb(FlightPhaseController):
 
         # only turn if we are high enough
         if self.full_auto_pilot.vessel.flight().mean_altitude > self.full_auto_pilot.flight_params.safe_turn_altitude:
-            self.full_auto_pilot.heading_controller.desired_heading = self.full_auto_pilot.flight_params.temp_climb_heading
+            self.full_auto_pilot.heading_controller.desired_heading = LatLong.get_plane_latlong(self.full_auto_pilot.vessel).heading_to(self.full_auto_pilot.flight_params.arrival_runway.start)
             self.full_auto_pilot.heading_controller.update(delta_time)
 
 class Cruise(FlightPhaseController):
@@ -168,7 +174,7 @@ class Cruise(FlightPhaseController):
         self.full_auto_pilot.altitude_controller.desired_altitude = self.full_auto_pilot.flight_params.cruise_altitude
         self.full_auto_pilot.altitude_controller.update(delta_time)
 
-        self.full_auto_pilot.heading_controller.desired_heading = self.full_auto_pilot.flight_params.temp_climb_heading
+        self.full_auto_pilot.heading_controller.desired_heading = LatLong.get_plane_latlong(self.full_auto_pilot.vessel).heading_to(self.full_auto_pilot.flight_params.arrival_runway.start)
         self.full_auto_pilot.heading_controller.update(delta_time)
 
         self.full_auto_pilot.auto_throttle.desired_speed = self.full_auto_pilot.flight_params.cruise_speed
@@ -254,8 +260,16 @@ class Rollout(FlightPhaseController):
     def update(self, delta_time):
         pass
 
+"""
+Information and parameters for the flight
+Contains depature runway and approach runway info
+"""
+
 class FlightPathParams:
     def __init__(self):
+        self.depature_runway : LatLongLine = LatLongLine(LatLong(-37.66444129883061, 144.8495527799204), 209.9854278564453)
+        self.arrival_runway : LatLongLine = LatLongLine(LatLong(-34.93613994127511, 138.53732454791594), 209.97891235351562)
+
         self.vr_speed = 80
         self.rotation_length = 4 # seconds
         self.rotation_pitch = 20 # degrees
@@ -263,24 +277,24 @@ class FlightPathParams:
         self.climb_pitch = 10 # degrees
         self.safe_turn_altitude = 250 # meters
 
-        self.temp_climb_heading = 50 # degrees
-
         self.cruise_altitude = 7000 # meters
         self.cruise_speed = 200 # m/s
 
 class FullAutoPilot:
-    def __init__(self, vessel):
+    def __init__(self, vessel, flight_params):
+        self.flight_params = flight_params
+
         self.vessel = vessel
         self.attitude_controller = AttitudeController(vessel)
         self.auto_throttle = AutoThrottle(vessel)
         self.heading_controller = HeadingController(vessel, self.attitude_controller)
         self.altitude_controller = AltitudeController(vessel, self.attitude_controller)
+        self.ground_heading_controller = GroundHeadingController(vessel, self.attitude_controller)
+        self.maintain_centerline_on_ground_controller = MaintainCenterlineOnGroundController(vessel, self.flight_params.depature_runway, self.ground_heading_controller)
 
         self.phase_controller: FlightPhaseController = PreLaunch(self)
 
         self.just_entered_phase = True
-
-        self.flight_params = FlightPathParams()
 
         self.phase_controllers:dict[FlightPhase, FlightPhaseController] = {
             FlightPhase.PRE_LAUNCH: PreLaunch(self),
@@ -326,8 +340,7 @@ if __name__ == "__main__":
 
     flight_params = FlightPathParams() # use default params for now
 
-    full_auto_pilot = FullAutoPilot(vessel)
-    full_auto_pilot.flight_params = flight_params
+    full_auto_pilot = FullAutoPilot(vessel, flight_params)
 
     if (conn.space_center is None):
         quit()

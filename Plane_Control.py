@@ -1,12 +1,8 @@
-from PID import PID, ForwardPID, clamp, PID_IntegralWindupMitigation
+from PID import PID, ForwardPID, PID_IntegralWindupMitigation
+from Math import clamp, cyclic_error
 import krpc
 from krpc import client
 import time
-
-
-def cyclic_error(desired_angle, current_angle, period=360.0):
-    half_period = period / 2.0
-    return (desired_angle - current_angle + half_period) % period - half_period
 
 """
 Controls roll and pitch and thrust using 2 PIDs
@@ -23,23 +19,30 @@ class AttitudeController:
 
         self.vessel = vessel
 
-    def update(self, delta_time):
+    def roll_update(self, delta_time):
+        reference_frame = self.vessel.surface_reference_frame
+
+        # between -180 and 180
+        current_roll = self.vessel.flight(reference_frame).roll
+        roll_error = cyclic_error(self.desired_roll, current_roll)
+        roll_control = self.roll_pid.get_control(roll_error, delta_time)
+
+        self.vessel.control.roll = roll_control
+    
+    def pitch_update(self, delta_time):
         reference_frame = self.vessel.surface_reference_frame
 
         # between -90 and 90
         current_pitch = self.vessel.flight(reference_frame).pitch
-        # between -180 and 180
-        current_roll = self.vessel.flight(reference_frame).roll
-
         pitch_error = self.desired_pitch - current_pitch
-        roll_error = cyclic_error(self.desired_roll, current_roll)
-
         pitch_control = self.pitch_pid.get_control(pitch_error, delta_time)
-        roll_control = self.roll_pid.get_control(roll_error, delta_time)
 
         self.vessel.control.pitch = pitch_control
-        self.vessel.control.roll = roll_control
 
+    def update(self, delta_time):
+        self.roll_update(delta_time)
+        self.pitch_update(delta_time)
+        
 """
 Controls the engine throttle to maintain a desired speed
 """
@@ -63,30 +66,6 @@ class AutoThrottle:
 
         throttle_control = self.thrust_pid.get_control(speed_error, delta_time, predictive_value=predictive_value)
         self.vessel.control.throttle = throttle_control
-"""
-Controlls heading by turning
-"""
-class HeadingController:
-    def __init__(self, vessel, attitude_controller: AttitudeController):
-        self.vessel = vessel
-        self.attitude_controller = attitude_controller
-
-        self.desired_heading = 0
-
-        self.roll_pid = PID(1/10, 1/20, 1/50, 10, -1, 1, PID_IntegralWindupMitigation.RESET)
-        self.max_bank_angle = 30 
-
-    def update(self, delta_time):
-        reference_frame = self.vessel.surface_reference_frame
-        current_heading = self.vessel.flight(reference_frame).heading
-
-        heading_error = cyclic_error(self.desired_heading, current_heading)
-
-        roll_control = self.roll_pid.get_control(heading_error, delta_time)
-        desired_roll = clamp(roll_control * self.max_bank_angle, -self.max_bank_angle, self.max_bank_angle)
-
-        self.attitude_controller.desired_roll = desired_roll
-        self.attitude_controller.update(delta_time)
 
 """
 Controls altitude by adjusting pitch
@@ -109,6 +88,28 @@ class AltitudeController:
 
         self.attitude_controller.desired_pitch = desired_pitch
         self.attitude_controller.update(delta_time)
+"""
+Does the same thing as HeadingController but uses rudder and wheels instead of rolling
+"""
+class GroundHeadingController:
+    def __init__(self, vessel):
+        self.vessel = vessel
+        self.desired_heading = 0
+
+        self.rudder_pid = PID(1/10, 1/20, 1/50, 10, -1, 1, PID_IntegralWindupMitigation.RESET)
+    
+    def update(self, delta_time):
+        reference_frame = self.vessel.surface_reference_frame
+        current_heading = self.vessel.flight(reference_frame).heading
+
+        heading_error = cyclic_error(self.desired_heading, current_heading)
+
+        rudder_control = self.rudder_pid.get_control(heading_error, delta_time)
+
+        self.vessel.control.rudder = rudder_control
+        self.vessel.control.wheel_steering = rudder_control
+
+
 
 if __name__ == "__main__":
     conn = krpc.connect(name='Plane Controller')
@@ -121,6 +122,8 @@ if __name__ == "__main__":
             print("No active vessel found, retrying...")
             continue
         break
+
+    from Meta_Plane_Control import HeadingController
 
     attitude_controller = AttitudeController(vessel)
     auto_throttle = AutoThrottle(vessel)
