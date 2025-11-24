@@ -36,6 +36,25 @@ class LatLong:
         compass_bearing = (initial_bearing + 360) % 360
 
         return compass_bearing
+    
+    def distance_to(self, other: 'LatLong') -> float:
+        """
+        Calculate the great-circle distance between this LatLong and another LatLong in meters.
+        Uses the Haversine formula.
+        """
+        lat1 = radians(self.latitude)
+        lon1 = radians(self.longitude)
+        lat2 = radians(other.latitude)
+        lon2 = radians(other.longitude)
+
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+        c = 2 * asin(min(1.0, a ** 0.5))
+
+        distance = R_earth * c
+        return distance
 
     @staticmethod
     def get_plane_latlong(vessel) -> 'LatLong':
@@ -90,6 +109,29 @@ class LatLongLine:
 
         return cross_track_distance
 
+    def get_point_at_distance(self, distance: float) -> LatLong:
+        """
+        Calculate the LatLong point at a given distance along the line from the start point.
+        """
+        # Convert degrees to radians
+        lat1 = radians(self.start.latitude)
+        lon1 = radians(self.start.longitude)
+        heading_rad = radians(self.heading)
+
+        # Angular distance
+        angular_distance = distance / R_earth
+
+        lat2 = asin(sin(lat1) * cos(angular_distance) +
+                    cos(lat1) * sin(angular_distance) * cos(heading_rad))
+
+        lon2 = lon1 + atan2(sin(heading_rad) * sin(angular_distance) * cos(lat1),
+                            cos(angular_distance) - sin(lat1) * sin(lat2))
+
+        # Convert back to degrees
+        lat2 = degrees(lat2)
+        lon2 = degrees(lon2)
+
+        return LatLong(lat2, lon2)
 
 def cyclic_error(desired_angle, current_angle, period=360.0):
     half_period = period / 2.0

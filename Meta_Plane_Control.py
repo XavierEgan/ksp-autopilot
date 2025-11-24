@@ -88,7 +88,23 @@ class MaintainCenterlineOnGroundController:
         self.ground_heading_controller.update(delta_time)
 
 class LocaliserController:
-    pass
+    def __init__(self, vessel, heading_controller: HeadingController, runway: LatLongLine):
+        self.vessel = vessel
+        self.heading_controller = heading_controller
+        self.runway = runway
+
+        self.localiser_pid = PID(1/200, 1/100, 0, 0, -1, 1)
+        self.max_heading_offset = 30 # degrees
+
+    def update(self, delta_time):
+        plane_latlong = LatLong.get_plane_latlong(self.vessel)
+        cross_track_error = self.runway.cross_track_error(plane_latlong)
+
+        heading_offset_control = self.localiser_pid.get_control(cross_track_error, delta_time)
+        heading_offset = heading_offset_control * self.max_heading_offset
+
+        self.heading_controller.desired_heading = (self.runway.heading + heading_offset) % 360
+        self.heading_controller.update(delta_time)
 
 class GlideslopeController:
     pass
