@@ -1,7 +1,7 @@
 from Plane_Control import AttitudeController, AutoThrottle, AltitudeController
 from Meta_Plane_Control import HeadingController, MaintainCenterlineOnGroundController, GroundHeadingController, LocaliserController
 from PID import PID, ForwardPID
-from Math import LatLong, LatLongLine
+from Math import LatLong, LatLongLine, clamp
 
 import krpc
 from enum import Enum
@@ -137,6 +137,7 @@ class Climb(FlightPhaseController):
     
     def on_enter(self):
         print("Entering Climb Phase")
+        self.full_auto_pilot.reset_controlls()
 
         # retract gear
         self.full_auto_pilot.vessel.control.gear = False
@@ -170,6 +171,7 @@ class Cruise(FlightPhaseController):
     
     def on_enter(self):
         print("Entering Cruise Phase")
+        self.full_auto_pilot.reset_controlls()
     
     def update(self, delta_time):
         self.full_auto_pilot.altitude_controller.desired_altitude = self.full_auto_pilot.flight_params.cruise_altitude
@@ -195,6 +197,7 @@ class Descent(FlightPhaseController):
     
     def on_enter(self):
         print("Entering Descent Phase")
+        self.full_auto_pilot.reset_controlls()
     
     def update(self, delta_time):
         self.full_auto_pilot.altitude_controller.desired_altitude = self.full_auto_pilot.flight_params.final_altitude
@@ -211,7 +214,9 @@ class Final(FlightPhaseController):
         super().__init__(full_auto_pilot)
     
     def should_transition(self) -> bool:
-        return False
+        height_off_ground = self.full_auto_pilot.vessel.flight(self.full_auto_pilot.vessel.surface_reference_frame).mean_altitude - self.full_auto_pilot.flight_params.arrival_threashold_altitude
+
+        return height_off_ground <= self.full_auto_pilot.flight_params.flaire_altitude
     
     def next_phase(self) -> FlightPhase:
         return FlightPhase.FLARE
@@ -226,33 +231,67 @@ class Final(FlightPhaseController):
         self.full_auto_pilot.auto_throttle.desired_speed = self.full_auto_pilot.flight_params.landing_speed
         self.full_auto_pilot.auto_throttle.update(delta_time)
 
-        self.full_auto_pilot.altitude_controller.desired_altitude = 250
-        self.full_auto_pilot.altitude_controller.update(delta_time)
+        distance_to_runway = LatLong.get_plane_latlong(self.full_auto_pilot.vessel).distance_to(self.full_auto_pilot.flight_params.arrival_runway.start)
+        speed = self.full_auto_pilot.vessel.flight(self.full_auto_pilot.vessel.orbit.body.reference_frame).speed
 
+        if (distance_to_runway <= self.full_auto_pilot.flight_params.landing_gear_deploy_distance):
+            self.full_auto_pilot.vessel.control.gear = True
         
+        if (speed <= self.full_auto_pilot.flight_params.flaps_deploy_speed):
+            self.full_auto_pilot.vessel.control.set_action_group(1, True)
+
+        # manage glideslope
+        dist_to_runway_threshold = LatLong.get_plane_latlong(self.full_auto_pilot.vessel).distance_to(self.full_auto_pilot.flight_params.arrival_runway.start)
+        delta_altitude = self.full_auto_pilot.flight_params.final_altitude - self.full_auto_pilot.flight_params.arrival_threashold_altitude
+
+        # since its a similar triangle, delta_altitude decreases linearly with distance to runway threshold
+        final_leg_length = self.full_auto_pilot.flight_params.final_begin_waypoint.distance_to(self.full_auto_pilot.flight_params.arrival_runway.start)
+        final_leg_length = max(final_leg_length, 1) # prevent div by 0
+        fraction_along_final = dist_to_runway_threshold / final_leg_length
+        fraction_along_final = clamp(fraction_along_final, 0, 1)
+
+        desired_altitude = self.full_auto_pilot.flight_params.arrival_threashold_altitude + (delta_altitude * fraction_along_final)
+        self.full_auto_pilot.altitude_controller.desired_altitude = desired_altitude
+        self.full_auto_pilot.altitude_controller.update(delta_time)
 
 class Flare(FlightPhaseController):
     def __init__(self, full_auto_pilot):
         super().__init__(full_auto_pilot)
+
+        self.flaire_time = 0
     
     def should_transition(self) -> bool:
-        return False
+        delta = self.flaire_time / self.full_auto_pilot.flight_params.flaire_duration
+        return delta >= 1.0
     
     def next_phase(self) -> FlightPhase:
         return FlightPhase.DEROTATION
     
     def on_enter(self):
         print("Entering Flare Phase")
+        self.full_auto_pilot.reset_controlls()
+        self.flaire_time = 0
     
     def update(self, delta_time):
-        pass
+        self.flaire_time += delta_time
+        delta = self.flaire_time / self.full_auto_pilot.flight_params.flaire_duration
+        height_left_to_flaire = self.full_auto_pilot.flight_params.flaire_altitude
+        desired_height = height_left_to_flaire * (1 - delta) + self.full_auto_pilot.flight_params.arrival_threashold_altitude
 
+        self.full_auto_pilot.altitude_controller.desired_altitude = desired_height
+        self.full_auto_pilot.altitude_controller.update(delta_time)
+
+        self.full_auto_pilot.auto_throttle.desired_speed = self.full_auto_pilot.flight_params.landing_speed
+        self.full_auto_pilot.auto_throttle.update(delta_time)
+
+        print(f"Flare Phase: Desired Altitude: {desired_height:.1f}, Current Altitude: {self.full_auto_pilot.vessel.flight(self.full_auto_pilot.vessel.surface_reference_frame).mean_altitude:.1f}")
+        
 class Derotation(FlightPhaseController):
     def __init__(self, full_auto_pilot):
         super().__init__(full_auto_pilot)
     
     def should_transition(self) -> bool:
-        return False
+        return True
     
     def next_phase(self) -> FlightPhase:
         return FlightPhase.ROLLOUT
@@ -275,9 +314,15 @@ class Rollout(FlightPhaseController):
     
     def on_enter(self):
         print("Entering Rollout Phase")
+        self.full_auto_pilot.reset_controlls()
+        self.full_auto_pilot.vessel.control.throttle = 0.0
     
     def update(self, delta_time):
-        pass
+        # apply brakes and maintain centerline
+        self.full_auto_pilot.vessel.control.brakes = True
+        self.full_auto_pilot.maintain_centerline_on_ground_controller.runway = self.full_auto_pilot.flight_params.arrival_runway
+        self.full_auto_pilot.maintain_centerline_on_ground_controller.update(delta_time)
+        
 
 """
 Information and parameters for the flight
@@ -287,8 +332,12 @@ Contains depature runway and approach runway info
 class FlightPathParams:
     def __init__(self):
         self.depature_runway : LatLongLine = LatLongLine(LatLong(-37.66444129883061, 144.8495527799204), 209.9854278564453)
-        self.arrival_runway : LatLongLine = LatLongLine(LatLong(-37.66444129883061, 144.8495527799204), 209.9854278564453)
-        # self.arrival_runway : LatLongLine = LatLongLine(LatLong(-34.93613994127511, 138.53732454791594), 209.97891235351562)
+        self.depature_threashold_altitude = 140.34361927770078
+        # self.arrival_runway : LatLongLine = LatLongLine(LatLong(-37.66444129883061, 144.8495527799204), 209.9854278564453)
+        # self.arrival_threashold_altitude = 140.34361927770078
+
+        self.arrival_runway : LatLongLine = LatLongLine(LatLong(-34.93613994127511, 138.53732454791594), 209.97891235351562)
+        self.arrival_threashold_altitude = 14.020269891247153
 
         self.vr_speed = 80
         self.rotation_length = 4 # seconds
@@ -297,18 +346,24 @@ class FlightPathParams:
         self.climb_pitch = 10 # degrees
         self.safe_turn_altitude = 250 # meters
 
-        self.cruise_altitude = 2000 # meters
-        self.cruise_speed = 200 # m/s
+        self.cruise_altitude = 10000 # meters
+        self.cruise_speed = 220 # m/s
 
-        self.descent_start = 150_000 # meters from final entry point, this is arbitrary for now
+        self.descent_start = 50_000 # meters from final entry point, this is arbitrary for now
 
         # we want to hit these parameters at the start of the final approach, then descend down and slow down accordingly
-        self.final_length = 20_000 # meters
-        self.final_altitude = 1000 # meters
+        self.final_length = 15_000 # meters
+        self.final_altitude = 1000 + self.arrival_threashold_altitude # meters
         self.final_speed = 150 # m/s
         self.final_begin_waypoint:LatLong = self.arrival_runway.get_point_at_distance(-self.final_length)
 
-        self.landing_speed = 80 # m/s
+        self.flaps_deploy_speed = 100 # m/s
+        self.landing_gear_deploy_distance = 5000 # meters from runway threshold
+
+        self.landing_speed = 60 # m/s
+
+        self.flaire_altitude = 25 # meters
+        self.flaire_duration = 15 # seconds
 
 class FullAutoPilot:
     def __init__(self, vessel, flight_params):
@@ -370,6 +425,13 @@ class FullAutoPilot:
 
             self.update(delta_time)
             time.sleep(0.0005)
+    
+    def reset_controlls(self):
+        self.vessel.control.throttle = 0.0
+        self.vessel.control.pitch = 0.0
+        self.vessel.control.roll = 0.0
+        self.vessel.control.yaw = 0.0
+        self.vessel.control.wheel_steering = 0.0
 
 if __name__ == "__main__":
     conn = krpc.connect(name = 'Full AutoPilot')

@@ -6,6 +6,7 @@ class PID_IntegralWindupMitigation(Enum):
     PASSIVE = 0
     RESET = 1
     DOUBLE_WINDUP_IF_OPPOSITE_PARITY = 2
+    QUADRUPLE_WINDUP_IF_OPPOSITE_PARITY = 3
 
 class PID:
     def __init__(self, proportional_gain, derivative_gain, integral_gain, integral_max, min_out, max_out, windup_mitigation=PID_IntegralWindupMitigation.PASSIVE):
@@ -38,6 +39,11 @@ class PID:
             # double the mitigation of integral if the error is the opposite sign of integral
             if (error_sign != integral_sign):
                 self.integral_sum += error * delta_time  # double the addition
+        
+        elif (self.windup_mitigation == PID_IntegralWindupMitigation.QUADRUPLE_WINDUP_IF_OPPOSITE_PARITY):
+            # quadruple the mitigation of integral if the error is the opposite sign of integral
+            if (error_sign != integral_sign):
+                self.integral_sum += 3 * error * delta_time  # quadruple the addition
             
         elif (self.windup_mitigation == PID_IntegralWindupMitigation.PASSIVE):
             # let it fix itself over time so we dont do anything

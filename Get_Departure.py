@@ -15,8 +15,10 @@ def print_depature_airport_info():
     heading = vessel.flight().heading
     lat = vessel.flight().latitude
     long = vessel.flight().longitude
+    altitude = vessel.flight().mean_altitude
 
     print(f"LatLongLine(LatLong({lat}, {long}), {heading})")
+    print(f"{altitude}")
 
 if __name__ == "__main__":
     print_depature_airport_info()

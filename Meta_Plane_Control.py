@@ -32,7 +32,7 @@ class HeadingController:
         desired_roll = roll_control * self.max_bank_angle
 
         self.attitude_controller.desired_roll = desired_roll
-        self.attitude_controller.update(delta_time)
+        self.attitude_controller.roll_update(delta_time)
 
 """
 Controlls the heading on ground
@@ -105,9 +105,6 @@ class LocaliserController:
 
         self.heading_controller.desired_heading = (self.runway.heading + heading_offset) % 360
         self.heading_controller.update(delta_time)
-
-class GlideslopeController:
-    pass
 
 if __name__ == "__main__":
     conn = krpc.connect(name='Heading Controller Test')

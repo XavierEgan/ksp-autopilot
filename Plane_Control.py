@@ -11,8 +11,8 @@ it also keeps a handle to the active vessel
 """
 class AttitudeController:
     def __init__(self, vessel):
-        self.pitch_pid = PID(1/50, 1/100, 1/80, 20, -1, 1, PID_IntegralWindupMitigation.DOUBLE_WINDUP_IF_OPPOSITE_PARITY)
-        self.roll_pid = PID(1/50, 1/80, 0, 0, -1, 1)
+        self.pitch_pid = PID(1/30, 1/40, 1/8, 2, -1, 1, PID_IntegralWindupMitigation.QUADRUPLE_WINDUP_IF_OPPOSITE_PARITY)
+        self.roll_pid = PID(1/20, 1/150, 0, 0, -1, 1)
 
         self.desired_pitch = 0
         self.desired_roll = 0
@@ -73,8 +73,8 @@ Controls altitude by adjusting pitch
 class AltitudeController:
     def __init__(self, vessel, attitude_controller: AttitudeController):
         self.desired_altitude = 0
-        self.altitude_pid = PID(1/30, 1/20, 1/50, 10, -1, 1)
-        self.max_pitch = 10
+        self.altitude_pid = PID(1/5, 1/100, 1/80, 20, -1, 1, PID_IntegralWindupMitigation.QUADRUPLE_WINDUP_IF_OPPOSITE_PARITY)
+        self.max_pitch = 10 # can be changed
         self.attitude_controller = attitude_controller
         self.vessel = vessel
     
@@ -84,10 +84,10 @@ class AltitudeController:
 
         altitude_error = self.desired_altitude - current_altitude
         pitch_control = self.altitude_pid.get_control(altitude_error, delta_time)
-        desired_pitch = clamp(pitch_control * self.max_pitch, -self.max_pitch, self.max_pitch)
+        desired_pitch = pitch_control * self.max_pitch
 
         self.attitude_controller.desired_pitch = desired_pitch
-        self.attitude_controller.update(delta_time)
+        self.attitude_controller.pitch_update(delta_time)
 """
 Does the same thing as HeadingController but uses rudder and wheels instead of rolling
 """
@@ -106,10 +106,8 @@ class GroundHeadingController:
 
         rudder_control = self.rudder_pid.get_control(heading_error, delta_time)
 
-        self.vessel.control.rudder = rudder_control
+        self.vessel.control.yaw = rudder_control
         self.vessel.control.wheel_steering = rudder_control
-
-
 
 if __name__ == "__main__":
     conn = krpc.connect(name='Plane Controller')
@@ -129,9 +127,9 @@ if __name__ == "__main__":
     auto_throttle = AutoThrottle(vessel)
     heading_controller = HeadingController(vessel, attitude_controller)
     altitude_controller = AltitudeController(vessel, attitude_controller)
-    attitude_controller.desired_pitch = 0
+    attitude_controller.desired_pitch = -10
     attitude_controller.desired_roll = 0
-    altitude_controller.desired_altitude = 7000
+    altitude_controller.desired_altitude = 1150
 
     auto_throttle.desired_speed = 200
 
@@ -146,7 +144,6 @@ if __name__ == "__main__":
 
         auto_throttle.update(delta_time)
         altitude_controller.update(delta_time)
-        heading_controller.update(delta_time)
-        attitude_controller.update(delta_time)
-
-        time.sleep(0.01)
+        #heading_controller.update(delta_time)
+        attitude_controller.roll_update(delta_time)
+        #attitude_controller.pitch_update(delta_time)
