@@ -73,7 +73,7 @@ Controls altitude by adjusting pitch
 class AltitudeController:
     def __init__(self, vessel, attitude_controller: AttitudeController):
         self.desired_altitude = 0
-        self.altitude_pid = PID(1/5, 1/100, 1/80, 20, -1, 1, PID_IntegralWindupMitigation.QUADRUPLE_WINDUP_IF_OPPOSITE_PARITY)
+        self.altitude_pid = PID(1/30, 1/50, 1/300, 200, -1, 1)
         self.max_pitch = 10 # can be changed
         self.attitude_controller = attitude_controller
         self.vessel = vessel
@@ -82,8 +82,12 @@ class AltitudeController:
         reference_frame = self.vessel.surface_reference_frame
         current_altitude = self.vessel.flight(reference_frame).mean_altitude
 
+
         altitude_error = self.desired_altitude - current_altitude
+
         pitch_control = self.altitude_pid.get_control(altitude_error, delta_time)
+
+
         desired_pitch = pitch_control * self.max_pitch
 
         self.attitude_controller.desired_pitch = desired_pitch
