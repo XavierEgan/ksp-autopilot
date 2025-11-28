@@ -1,4 +1,3 @@
-import math
 from enum import Enum
 from Math import clamp
 
@@ -9,7 +8,7 @@ class PID_IntegralWindupMitigation(Enum):
     QUADRUPLE_WINDUP_IF_OPPOSITE_PARITY = 3
 
 class PID:
-    def __init__(self, proportional_gain, derivative_gain, integral_gain, integral_max, min_out, max_out, windup_mitigation=PID_IntegralWindupMitigation.PASSIVE):
+    def __init__(self, proportional_gain: float, derivative_gain: float, integral_gain: float, integral_max: float, min_out: float, max_out: float, windup_mitigation: PID_IntegralWindupMitigation = PID_IntegralWindupMitigation.PASSIVE):
         self.proportional_gain = proportional_gain
         self.derivative_gain = derivative_gain
         self.integral_gain = integral_gain
@@ -24,7 +23,7 @@ class PID:
         self.previous_error = 0
         self.windup_mitigation = windup_mitigation
     
-    def get_control(self, error, delta_time):
+    def get_control(self, error: float, delta_time: float):
         self.integral_sum += error * delta_time
 
         error_sign = 1 if error >= 0 else -1
@@ -63,9 +62,9 @@ class PID:
     
 # Like a PID that you can add a predictive value to (example )
 class ForwardPID(PID):
-    def __init__(self, proportional_gain, derivative_gain, integral_gain, integral_max, min_out, max_out):
+    def __init__(self, proportional_gain: float, derivative_gain: float, integral_gain: float, integral_max: float, min_out: float, max_out: float):
         super().__init__(proportional_gain, derivative_gain, integral_gain, integral_max, min_out, max_out)
-    def get_control(self, error, delta_time, predictive_value=0):
+    def get_control(self, error: float, delta_time: float, predictive_value: float = 0):
         self.integral_sum += error * delta_time
         self.integral_sum = clamp(self.integral_sum, -self.integral_max, self.integral_max)
 

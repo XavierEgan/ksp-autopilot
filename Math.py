@@ -1,5 +1,7 @@
 from math import asin, radians, degrees, sin, cos, atan2
 
+from krpc.services.spacecenter import Vessel
+
 R_earth = 6371000  # radius of earth in meters
 
 class LatLong:
@@ -13,7 +15,7 @@ class LatLong:
     def __str__(self) -> str:
         return f"({self.latitude}, {self.longitude})"
     
-    def to_tuple(self) -> tuple:
+    def to_tuple(self) -> tuple[float, float]:
         return (self.latitude, self.longitude)
     
     def heading_to(self, other: 'LatLong') -> float:
@@ -57,7 +59,7 @@ class LatLong:
         return distance
 
     @staticmethod
-    def get_plane_latlong(vessel) -> 'LatLong':
+    def get_plane_latlong(vessel: Vessel) -> 'LatLong':
         lat = vessel.flight().latitude
         long = vessel.flight().longitude
         return LatLong(lat, long)
@@ -133,9 +135,9 @@ class LatLongLine:
 
         return LatLong(lat2, lon2)
 
-def cyclic_error(desired_angle, current_angle, period=360.0):
+def cyclic_error(desired_angle: float, current_angle: float, period: float = 360.0) -> float:
     half_period = period / 2.0
     return (desired_angle - current_angle + half_period) % period - half_period
 
-def clamp(value, min_value, max_value):
+def clamp(value: float, min_value: float, max_value: float) -> float:
     return max(min_value, min(value, max_value))

@@ -1,10 +1,7 @@
 import krpc
-import time
-
-from Math import LatLongLine, LatLong
 
 def print_depature_airport_info():
-    conn = krpc.connect(name='Get Departure Info')
+    conn = krpc.connect(name='Get Runway Info')
 
     if not conn.space_center:
         print("No space center.")
@@ -17,8 +14,7 @@ def print_depature_airport_info():
     long = vessel.flight().longitude
     altitude = vessel.flight().mean_altitude
 
-    print(f"LatLongLine(LatLong({lat}, {long}), {heading})")
-    print(f"{altitude}")
+    print(f"Runway(LatLongLine(LatLong({lat}, {long}), {heading}), {altitude})")
 
 if __name__ == "__main__":
     print_depature_airport_info()
