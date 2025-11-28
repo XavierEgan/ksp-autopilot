@@ -27,7 +27,16 @@ class FullAutoPilot:
             FlightPhase.ROLLOUT: Rollout(vessel, flight_params, self.plane_controller_manager)
         }
 
-    def update(self, delta_time:float):
+        self.last_update_time = space_center.ut
+
+    def update(self):
+        if (self.last_update_time == space_center.ut):
+            return
+        
+        current_time = space_center.ut
+        delta_time = current_time - self.last_update_time
+        self.last_update_time = current_time
+
         if self.just_entered_phase:
             self.phase_controller.on_enter()
             self.just_entered_phase = False
@@ -43,18 +52,6 @@ class FullAutoPilot:
             
         else:
             self.phase_controller.update(delta_time)
-
-    def update_loop(self, space_center: SpaceCenter):
-        last_time = space_center.ut
-        while True:
-            if (last_time == space_center.ut):
-                continue
-
-            current_time = space_center.ut
-            delta_time = current_time - last_time
-            last_time = current_time
-
-            self.update(delta_time)
 
 if __name__ == "__main__":
     conn: Client = krpc.connect(name = 'Full AutoPilot')
@@ -81,4 +78,5 @@ if __name__ == "__main__":
 
     full_auto_pilot = FullAutoPilot(vessel, flight_params)
     
-    full_auto_pilot.update_loop(space_center)
+    while True:
+        full_auto_pilot.update()
