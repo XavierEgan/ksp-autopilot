@@ -1,6 +1,6 @@
 import krpc
 
-def print_depature_airport_info():
+def print_depature_airport_info() -> None:
     conn = krpc.connect(name='Get Runway Info')
 
     if not conn.space_center:

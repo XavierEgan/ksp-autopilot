@@ -7,7 +7,7 @@ from Timer import Timer
 from krpc.services.spacecenter import Vessel
 from Plane_Controller_Manager import PlaneControllerManager
 
-def reset_controlls(vessel: Vessel):
+def reset_controlls(vessel: Vessel) -> None:
     vessel.control.throttle = 0.0
     vessel.control.pitch = 0.0
     vessel.control.roll = 0.0

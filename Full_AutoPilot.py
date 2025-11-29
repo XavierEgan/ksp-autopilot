@@ -7,7 +7,7 @@ from krpc.services.spacecenter import Vessel, SpaceCenter
 from krpc.client import Client
         
 class FullAutoPilot:
-    def __init__(self, vessel: Vessel, flight_params: FlightPathParams):
+    def __init__(self, vessel: Vessel, flight_params: FlightPathParams) -> None:
         self.plane_controller_manager = PlaneControllerManager(vessel, flight_params=flight_params)
 
         self.phase_controller:FlightPhaseBase = PreLaunch(vessel, flight_params, self.plane_controller_manager)
@@ -70,10 +70,10 @@ if __name__ == "__main__":
             continue
         break
 
-    from Runway import RUNWAY_YMML#, RUNWAY_YPAD
+    from Runway import RUNWAY_YMML, RUNWAY_KSC , RUNWAY_YPAD
 
     flight_params: FlightPathParams = generateFlightPath(
-        RUNWAY_YMML, RUNWAY_YMML
+        RUNWAY_KSC, RUNWAY_KSC
     )
 
     full_auto_pilot = FullAutoPilot(vessel, flight_params)

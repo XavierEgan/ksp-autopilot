@@ -21,13 +21,16 @@ class Runway:
     def get_point_at_distance(self, distance_meters: float) -> LatLong:
         return self.line.get_point_at_distance(distance_meters)
 
-RUNWAY_YMML: Runway = Runway(
+RUNWAY_YMML = Runway(
     LatLongLine(LatLong(-37.66444129883061, 144.8495527799204), 209.9854278564453),
     140.34361927770078
 )
 
-RUNWAY_YPAD: Runway = Runway(
+RUNWAY_YPAD = Runway(
     LatLongLine(LatLong(-34.93613994127511, 138.53732454791594), 209.97891235351562),
     14.020269891247153
 )
 
+RUNWAY_KSC = Runway(
+    LatLongLine(LatLong(28.61285846502337, -80.61755918001734), 89.89300537109375), 80.82715495210141
+)
