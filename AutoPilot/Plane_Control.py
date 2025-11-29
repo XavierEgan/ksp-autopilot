@@ -1,5 +1,6 @@
 from Utils.PID import PID, ForwardPID, PID_IntegralWindupMitigation
-from Utils.PID2 import PID2, make_pid_manually
+from Utils.PID2 import make_pid_ziegler_nichols
+from Utils.Axis_Controller import AxisController
 from Utils.Math import LatLong, clamp, cyclic_error
 from krpc.services.spacecenter import Vessel
 from Utils.Runway import Runway
@@ -11,9 +12,18 @@ it also keeps a handle to the active vessel
 """
 class AttitudeController:
     def __init__(self, vessel: Vessel):
-        self.pitch_pid: PID2 = make_pid_manually(kp=1/30, ki=1/50, kd=1/50, output_min=-1, output_max=1)
-        self.precise_pitch_pid: PID2 = make_pid_manually(kp=1/15, ki=1/4, kd=1/20, output_min=-1, output_max=1)
-        self.roll_pid: PID2 = make_pid_manually(kp=1/20, ki=0, kd=1/150, output_min=-1, output_max=1)
+        # self.pitch_pid: PID2 = make_pid_manual(kp=1/30, ki=1/50, kd=1/50, output_min=-1, output_max=1)
+        # self.precise_pitch_pid: PID2 = make_pid_manual(kp=1/15, ki=1/4, kd=1/20, output_min=-1, output_max=1)
+
+        self.pitch_axis_controller: AxisController = AxisController(
+            pid=make_pid_ziegler_nichols(ku=0.94099, tu=0.62, output_min=-1, output_max=1, control_type='some overshoot'),
+            reference_airspeed=160.0
+        )
+
+        self.roll_axis_controller = AxisController(
+            pid=make_pid_ziegler_nichols(ku=0.91266, tu=1.36, output_min=-1, output_max=1, control_type='some overshoot'),
+            reference_airspeed=170.0
+        )
 
         self.desired_pitch = 0.0
         self.desired_roll = 0.0
@@ -26,7 +36,7 @@ class AttitudeController:
         # between -180 and 180
         current_roll = self.vessel.flight(reference_frame).roll
         roll_error = cyclic_error(self.desired_roll, current_roll)
-        roll_control = self.roll_pid.get_control(roll_error, delta_time)
+        roll_control = self.roll_axis_controller.get_control(roll_error, delta_time)
 
         self.vessel.control.roll = roll_control
     
@@ -38,9 +48,9 @@ class AttitudeController:
         pitch_error = self.desired_pitch - current_pitch
 
         if precise:
-            pitch_control = self.precise_pitch_pid.get_control(pitch_error, delta_time)
+            pitch_control = self.pitch_axis_controller.get_control(pitch_error, delta_time)
         else:
-            pitch_control = self.pitch_pid.get_control(pitch_error, delta_time)
+            pitch_control = self.pitch_axis_controller.get_control(pitch_error, delta_time)
 
         self.vessel.control.pitch = pitch_control
 

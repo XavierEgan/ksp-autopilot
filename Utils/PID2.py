@@ -31,7 +31,7 @@ class PID2:
         return output
 
 
-def make_pid_manually(
+def make_pid_manual(
     kp: float = 0.0, 
     ki: float = 0.0, 
     kd: float = 0.0, 
@@ -45,7 +45,7 @@ def make_pid_manually(
         output_max=output_max
     )
 
-def init_ziegler_nichols(
+def make_pid_ziegler_nichols(
         ku: float, 
         tu: float, 
         output_min: float = -1.0, output_max: float = 1.0, 
