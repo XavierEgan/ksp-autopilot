@@ -1,7 +1,8 @@
-from PID import PID, ForwardPID, PID_IntegralWindupMitigation
-from Math import LatLong, clamp, cyclic_error
+from Utils.PID import PID, ForwardPID, PID_IntegralWindupMitigation
+from Utils.PID2 import PID2, make_pid_manually
+from Utils.Math import LatLong, clamp, cyclic_error
 from krpc.services.spacecenter import Vessel
-from Runway import Runway
+from Utils.Runway import Runway
 
 """
 Controls roll and pitch and thrust using 2 PIDs
@@ -10,9 +11,9 @@ it also keeps a handle to the active vessel
 """
 class AttitudeController:
     def __init__(self, vessel: Vessel):
-        self.pitch_pid = PID(1/30, 1/50, 1/50, 100, -1, 1)
-        self.precise_pid = PID(1/15, 1/20, 1/4, 2, -1, 1)
-        self.roll_pid = PID(1/20, 1/150, 0, 0, -1, 1)
+        self.pitch_pid: PID2 = make_pid_manually(kp=1/30, ki=1/50, kd=1/50, output_min=-1, output_max=1)
+        self.precise_pitch_pid: PID2 = make_pid_manually(kp=1/15, ki=1/4, kd=1/20, output_min=-1, output_max=1)
+        self.roll_pid: PID2 = make_pid_manually(kp=1/20, ki=0, kd=1/150, output_min=-1, output_max=1)
 
         self.desired_pitch = 0.0
         self.desired_roll = 0.0
@@ -37,7 +38,7 @@ class AttitudeController:
         pitch_error = self.desired_pitch - current_pitch
 
         if precise:
-            pitch_control = self.precise_pid.get_control(pitch_error, delta_time)
+            pitch_control = self.precise_pitch_pid.get_control(pitch_error, delta_time)
         else:
             pitch_control = self.pitch_pid.get_control(pitch_error, delta_time)
 

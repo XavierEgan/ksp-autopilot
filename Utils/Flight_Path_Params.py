@@ -1,5 +1,5 @@
-from Runway import Runway
-from Math import LatLong
+from Utils.Runway import Runway
+from Utils.Math import LatLong
 from dataclasses import dataclass
 
 """

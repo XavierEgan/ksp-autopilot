@@ -1,4 +1,4 @@
-from Math import LatLongLine, LatLong
+from Utils.Math import LatLongLine, LatLong
 
 class Runway:
     line: LatLongLine

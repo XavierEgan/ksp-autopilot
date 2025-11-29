@@ -1,5 +1,5 @@
-from Plane_Control import AttitudeController, AutoThrottle, AltitudeController, HeadingController, GroundHeadingController, MaintainCenterlineOnGroundController, LocaliserController
-from Flight_Path_Params import FlightPathParams
+from AutoPilot.Plane_Control import AttitudeController, AutoThrottle, AltitudeController, HeadingController, GroundHeadingController, MaintainCenterlineOnGroundController, LocaliserController
+from Utils.Flight_Path_Params import FlightPathParams
 
 from krpc.services.spacecenter import Vessel
 

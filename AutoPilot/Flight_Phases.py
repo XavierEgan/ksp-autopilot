@@ -1,11 +1,11 @@
 from enum import Enum
 from abc import ABC, abstractmethod
-from Flight_Path_Params import FlightPathParams
-from Math import clamp, LatLong, cyclic_error
-from Timer import Timer
+from Utils.Flight_Path_Params import FlightPathParams
+from Utils.Math import clamp, LatLong, cyclic_error
+from Utils.Timer import Timer
 
 from krpc.services.spacecenter import Vessel
-from Plane_Controller_Manager import PlaneControllerManager
+from AutoPilot.Plane_Controller_Manager import PlaneControllerManager
 
 def reset_controlls(vessel: Vessel) -> None:
     vessel.control.throttle = 0.0
