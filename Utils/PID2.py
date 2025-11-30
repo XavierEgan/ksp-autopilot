@@ -49,8 +49,9 @@ def make_pid_ziegler_nichols(
         ku: float, 
         tu: float, 
         output_min: float = -1.0, output_max: float = 1.0, 
-        control_type: Literal["classic", "pessen integral rule", "some overshoot", "no overshoot"] = "classic"
+        control_type: Literal["classic", "pessen integral rule", "some overshoot", "no overshoot", "chill"] = "classic"
     ) -> PID2:
+
     if control_type == "classic":
         kp = ku        * 0.6
         ki = ku / tu   * 1.2
@@ -65,6 +66,10 @@ def make_pid_ziegler_nichols(
         kd = ku * tu   * (1 / 9)
     elif control_type == "no overshoot":
         kp = ku        * 0.2
+        ki = ku / tu   * 0.4
+        kd = ku * tu   * (2 / 30)
+    elif control_type == "chill":
+        kp = ku        * 0.1
         ki = ku / tu   * 0.4
         kd = ku * tu   * (2 / 30)
     else :

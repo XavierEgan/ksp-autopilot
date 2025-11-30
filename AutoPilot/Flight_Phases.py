@@ -220,8 +220,6 @@ class Final(FlightPhaseBase):
         self.plane_controller_manager.altitude_controller.desired_altitude = desired_altitude
         self.plane_controller_manager.altitude_controller.update(delta_time)
 
-        print(f"Final Phase: Altitude Error: {desired_altitude - self.vessel.flight(self.vessel.surface_reference_frame).mean_altitude:.1f} Pitch Error: {self.plane_controller_manager.attitude_controller.desired_pitch - self.vessel.flight(self.vessel.surface_reference_frame).pitch:.1f}")
-
     def manage_localiser(self, delta_time: float):
         if self.final_phase == 0:
             self.plane_controller_manager.heading_controller.desired_heading = self.flight_params.arrival_runway.line.heading
@@ -255,6 +253,9 @@ class Flare(FlightPhaseBase):
         self.flare_timer = Timer(self.flight_params.flare_duration_s)
         self.start_throttle = self.vessel.control.throttle
 
+        self.plane_controller_manager.heading_controller.desired_heading = self.flight_params.arrival_runway.line.heading
+        self.plane_controller_manager.heading_controller.max_bank_angle = 3.0
+
         reset_controlls(self.vessel)
 
     # returns float from 0 to 1 representing the flare pitch curve
@@ -264,15 +265,14 @@ class Flare(FlightPhaseBase):
     def update(self, delta_time: float):
         self.flare_timer.update(delta_time)
         fraction_of_flare_left = 1 - self.flare_timer.fraction_complete()
-        height_left_to_flare = self.flight_params.flare_altitude_m
-        desired_height = height_left_to_flare * self.flare_pitch_curve(fraction_of_flare_left) + self.flight_params.arrival_runway.threashold_altitude
+        height_to_flare = self.flight_params.flare_altitude_m
+        desired_height = height_to_flare * self.flare_pitch_curve(fraction_of_flare_left) + self.flight_params.arrival_runway.threashold_altitude
 
         self.plane_controller_manager.altitude_controller.desired_altitude = desired_height
-        self.plane_controller_manager.altitude_controller.update(delta_time, precise=True)
 
         self.vessel.control.throttle = clamp(fraction_of_flare_left, 0, 1) * self.start_throttle
-
-        print(f"Flare Phase: Altitude Error: {desired_height - self.vessel.flight(self.vessel.surface_reference_frame).mean_altitude:.1f} Pitch Error: {self.plane_controller_manager.attitude_controller.desired_pitch - self.vessel.flight(self.vessel.surface_reference_frame).pitch:.1f}")
+        self.plane_controller_manager.altitude_controller.update(delta_time, precise=True)
+        self.plane_controller_manager.heading_controller.update(delta_time)
         
 class Derotation(FlightPhaseBase):
     def should_transition(self) -> bool:

@@ -1,7 +1,7 @@
 from Utils.PID2 import PID2
 from Utils.Math import clamp
 
-MAX_AIRSPEED_FACTOR = 4.0
+MAX_AIRSPEED_FACTOR = 1.5
 MIN_AIRSPEED_FACTOR = 0.5
 
 """
