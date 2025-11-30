@@ -122,7 +122,7 @@ class HeadingController:
 
         self.desired_heading = 0.0
 
-        self.roll_pid = PID(1/10, 1/20, 1/50, 10, -1, 1, PID_IntegralWindupMitigation.RESET)
+        self.roll_pid: PID2 = make_pid_manual(kp=1/20, ki=1/40, kd=1/40, output_min=-1, output_max=1)
         self.max_bank_angle = 30.0
 
     def update(self, delta_time: float):
