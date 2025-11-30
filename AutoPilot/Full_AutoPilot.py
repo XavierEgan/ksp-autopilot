@@ -18,7 +18,7 @@ class FullAutoPilot:
         self.vessel = self.space_center.active_vessel
 
         self.plane_controller_manager = PlaneControllerManager(self.vessel, flight_params=flight_params)
-        self.phase_controller:FlightPhaseBase = Descent(self.vessel, flight_params, self.plane_controller_manager)
+        self.phase_controller:FlightPhaseBase = PreLaunch(self.vessel, flight_params, self.plane_controller_manager)
 
         self.just_entered_phase = True
 

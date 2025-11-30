@@ -1,5 +1,5 @@
 from Utils.PID import PID, ForwardPID, PID_IntegralWindupMitigation
-from Utils.PID2 import make_pid_ziegler_nichols
+from Utils.PID2 import PID2, make_pid_ziegler_nichols, make_pid_manual
 from Utils.Axis_Controller import AxisController
 from Utils.Math import LatLong, clamp, cyclic_error
 from krpc.services.spacecenter import Vessel
@@ -88,8 +88,11 @@ Controls altitude by adjusting pitch
 class AltitudeController:
     def __init__(self, vessel: Vessel, attitude_controller: AttitudeController):
         self.desired_altitude = 0.0
-        self.altitude_pid = PID(1/30, 1/50, 1/80, 20, -1, 1)
-        self.precise_pid = PID(1/10, 1/30, 1/40, 20, -1, 1)
+        
+        # i tried to do this with ziegler nichols but it does not work well
+        self.altitude_pid: PID2 = make_pid_manual(kp=1/30, ki=1/80, kd=1/50, output_min=-1, output_max=1)
+        self.precise_pid: PID2 = make_pid_manual(kp=1/10, ki=1/40, kd=1/30, output_min=-1, output_max=1)
+
         self.max_pitch = 10.0 # can be changed
         self.attitude_controller = attitude_controller
         self.vessel = vessel

@@ -4,7 +4,9 @@ from Utils.Flight_Path_Params import FlightPathParams, generateFlightPath
 
 def main() -> None:
     flight_params: FlightPathParams = generateFlightPath(
-        RUNWAY_KSC, RUNWAY_KSC
+        RUNWAY_KSC, RUNWAY_KSC,
+        cruise_altitude_m=2000.0,
+        cruise_speed_mps=350.0
     )
 
     autopilot = FullAutoPilot(flight_params)

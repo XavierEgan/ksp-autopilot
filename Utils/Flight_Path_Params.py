@@ -46,7 +46,7 @@ def generateFlightPath(
 
         climb_pitch_deg: float = 10,
         safe_turn_altitude_m: float = 250,
-        cruise_altitude_m: float = 2000,
+        cruise_altitude_m: float = 10000,
         cruise_speed_mps: float = 220,
         descent_start_distance_m: float = 50_000,
         
