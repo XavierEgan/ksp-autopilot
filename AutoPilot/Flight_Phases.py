@@ -124,7 +124,7 @@ class ClimbAndCruise(FlightPhaseBase):
         return FlightPhase.DESCENT
     
     def on_enter(self):
-        print("Entering Climb Phase")
+        print("Entering Climb/Cruise Phase")
         reset_controlls(self.vessel)
 
         # retract gear
@@ -235,7 +235,7 @@ class Final(FlightPhaseBase):
     
     def update(self, delta_time: float):
         distance_to_runway = self.telemetry.get_latlong().distance_to(self.flight_params.arrival_runway.line.start)
-        fraction_of_final_left = 1 - clamp(distance_to_runway / self.flight_params.final_length_m, 0, 1)
+        fraction_of_final_left = clamp(distance_to_runway / self.flight_params.final_length_m, 0.0, 1.0)
 
         self.manage_gear_and_flaps()
         self.manage_speed(delta_time, fraction_of_final_left)

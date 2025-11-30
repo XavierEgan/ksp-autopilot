@@ -19,7 +19,7 @@ class FullAutoPilot:
             FlightPhase.ROLLOUT: Rollout(self.context)
         }
 
-        self.phase_controller:FlightPhaseBase = self.phase_controllers[FlightPhase.PRE_LAUNCH]
+        self.phase_controller:FlightPhaseBase = self.phase_controllers[FlightPhase.FINAL]
 
         self.last_update_time = self.context.space_center.ut
         

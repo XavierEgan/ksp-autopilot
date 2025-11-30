@@ -36,21 +36,18 @@ class AttitudeController:
         # between -180 and 180
         current_roll = self.vessel.flight(reference_frame).roll
         roll_error = cyclic_error(self.desired_roll, current_roll)
-        roll_control = self.roll_axis_controller.get_control(roll_error, delta_time)
+        roll_control = self.roll_axis_controller.get_control(roll_error, delta_time, current_airspeed=self.vessel.flight(self.vessel.orbit.body.reference_frame).speed)
 
         self.vessel.control.roll = roll_control
     
-    def pitch_update(self, delta_time: float, precise: bool = False):
+    def pitch_update(self, delta_time: float):
         reference_frame = self.vessel.surface_reference_frame
 
         # between -90 and 90
         current_pitch = self.vessel.flight(reference_frame).pitch
         pitch_error = self.desired_pitch - current_pitch
 
-        if precise:
-            pitch_control = self.pitch_axis_controller.get_control(pitch_error, delta_time)
-        else:
-            pitch_control = self.pitch_axis_controller.get_control(pitch_error, delta_time)
+        pitch_control = self.pitch_axis_controller.get_control(pitch_error, delta_time, current_airspeed=self.vessel.flight(self.vessel.orbit.body.reference_frame).speed)
 
         self.vessel.control.pitch = pitch_control
 
@@ -113,7 +110,7 @@ class AltitudeController:
         desired_pitch = pitch_control * self.max_pitch
 
         self.attitude_controller.desired_pitch = desired_pitch
-        self.attitude_controller.pitch_update(delta_time, precise=precise)
+        self.attitude_controller.pitch_update(delta_time)
 
 """
 Controlls heading by turning
