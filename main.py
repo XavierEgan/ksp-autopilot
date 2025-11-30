@@ -7,8 +7,7 @@ def main() -> None:
     flight_params: FlightPathParams = generateFlightPath(
         RUNWAY_KSC, RUNWAY_KSC,
         cruise_altitude_m=2000.0,
-        cruise_speed_mps=200.0,
-        landing_speed_mps=100
+        cruise_speed_mps=200.0
     )
 
     autopilot = FullAutoPilot(AutoPilotContext(flight_params))
