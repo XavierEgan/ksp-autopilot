@@ -29,8 +29,8 @@ class FlightPathParams:
     landing_gear_deploy_distance_m: float
     landing_speed_mps: float
 
-    flaire_altitude_m: float
-    flaire_duration_s: float
+    flare_altitude_m: float
+    flare_duration_s: float
     derotation_time_s: float
 
 """
@@ -57,8 +57,8 @@ def generateFlightPath(
         landing_gear_deploy_distance_m: float = 5000,
         landing_speed_mps: float = 60,
 
-        flaire_altitude_m: float = 15,
-        flaire_duration_s: float = 10,
+        flare_altitude_m: float = 15,
+        flare_duration_s: float = 10,
         derotation_time_s: float = 10
         
 ) -> FlightPathParams:
@@ -87,8 +87,8 @@ def generateFlightPath(
         landing_gear_deploy_distance_m=landing_gear_deploy_distance_m,
         landing_speed_mps=landing_speed_mps,
 
-        flaire_altitude_m=flaire_altitude_m,
-        flaire_duration_s=flaire_duration_s,
+        flare_altitude_m=flare_altitude_m,
+        flare_duration_s=flare_duration_s,
 
         derotation_time_s=derotation_time_s
     )
