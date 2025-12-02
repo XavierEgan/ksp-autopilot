@@ -66,7 +66,7 @@ class LatLongLine:
         lat2 = degrees(lat2)
         lon2 = degrees(lon2)
 
-        return LatLong(lat2, lon2)
+        return LatLong(lat2, lon2)        
 
     def __str__(self) -> str:
         return f"Line(start={self.start}, heading={self.heading})"

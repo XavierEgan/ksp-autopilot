@@ -1,9 +1,8 @@
-
 MATH:
     LATLONG
         - A way to do math and calculations in xy (tangent to kerbin) plane and easily convert to latlong coords
         - although this may be several km off what i expect when we are far out, the error gets smaller as we get closer to the center (the start of the runway so it doesnt matter)
-    
+
     PID
         - simple pid with anti windup that i tune manually
         - Ziegler-Nichols was more trouble than its worth before
@@ -20,7 +19,6 @@ BASIC_PLANE_CONTROL:
         - Speed m/s
         - Asc/Desc Rate m/s
 
-
 OVERALL_CONTROL_VIEW:
     this is a view of the control loops
 
@@ -30,11 +28,10 @@ OVERALL_CONTROL_VIEW:
         Flare -> Asc/Desc Rate -> Pitch
         Speed -> Thrust
 
-
-
-
-
-
-
 AUTOPILOT
     state machine
+
+CONVENTIONS:
+    meters per second = mps
+    meter seconds = ms
+    
