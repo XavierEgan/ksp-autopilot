@@ -6,6 +6,7 @@ It can take off, climb, cruise, descend and land the plane autonomously.
 - Fully automatic takeoff, climb, cruise and landing]
 - Able to land at any runway (you need to hardcode latlong and heading of the runway, but there is a tool to help)
 - Can land smoothly
+
 some examples:
 [medal](https://medal.tv/games/kerbal-space/clips/lBcPiXb54Rsh2lXDN?invite=cr-MSw0VWMsMTAwNjg1MDU)
 [medal](https://medal.tv/games/kerbal-space/clips/lzVtZpQQzytjdkC9A?invite=cr-MSxFeTQsMTAwNjg1MDU)
