@@ -1,0 +1,40 @@
+
+MATH:
+    LATLONG
+        - A way to do math and calculations in xy (tangent to kerbin) plane and easily convert to latlong coords
+        - although this may be several km off what i expect when we are far out, the error gets smaller as we get closer to the center (the start of the runway so it doesnt matter)
+    
+    PID
+        - simple pid with anti windup that i tune manually
+        - Ziegler-Nichols was more trouble than its worth before
+
+        anti windup is like this
+        accumulated += (error + const * (clamp(out) - out)) * dt
+
+        for example if out is 10 and gets clamped to 1
+        accumulated += (error + -9 * const) * dt
+
+BASIC_PLANE_CONTROL:
+    Values that are animated by higher order flight control
+        - Turn Rate D/s
+        - Speed m/s
+        - Asc/Desc Rate m/s
+
+
+OVERALL_CONTROL_VIEW:
+    this is a view of the control loops
+
+        Localiser -> Turn Rate -> Roll
+        Track -> Turn Rate -> Roll
+        Altitude -> Asc/Desc Rate -> Pitch
+        Flare -> Asc/Desc Rate -> Pitch
+        Speed -> Thrust
+
+
+
+
+
+
+
+AUTOPILOT
+    state machine
