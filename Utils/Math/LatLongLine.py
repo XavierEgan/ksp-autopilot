@@ -1,4 +1,4 @@
-from LatLong import LatLong
+from Utils.Math.LatLong import LatLong
 from math import asin, radians, degrees, sin, cos, atan2
 
 R_EARTH_M = 6371000

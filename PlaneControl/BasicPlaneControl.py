@@ -1,3 +1,4 @@
+from Autopilot.AutopilotContext import AutopilotContext
 from Utils.Math.PID import PID
 from Utils.PlaneCharacteristics import PlaneCharacteristics
 from Utils.AutopilotConfigs import AutopilotConfigs
@@ -22,3 +23,6 @@ class BasicPlaneControl:
         self.max_speed_mps = plane_characteristics.max_speed_mps
 
     def update(self, dt: float, context: AutopilotContext):
+        plane_connection = context.plane_connection
+
+        # 
