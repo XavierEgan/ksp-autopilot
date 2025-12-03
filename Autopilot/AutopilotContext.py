@@ -5,3 +5,6 @@ class AutopilotContext:
     def __init__(self, flight_plan: FlightPlan):
         self.flight_plan = flight_plan
         self.plane_connection = PlaneConnection()
+    
+    def update(self, dt: float):
+        self.plane_connection.update(dt)

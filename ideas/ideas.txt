@@ -28,6 +28,15 @@ OVERALL_CONTROL_VIEW:
         Flare -> Asc/Desc Rate -> Pitch
         Speed -> Thrust
 
+FLIGHT_PHASES:
+    - takeoff
+    - flight
+    - intercept Localiser
+    - Flare
+    - rollout
+
+    distinct phases for climb, cruise and descent are borderline useless because the phases all do the same thing lmao
+
 AUTOPILOT
     state machine
 

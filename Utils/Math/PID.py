@@ -1,28 +1,35 @@
-
+from Utils.Math.Smoothing import CentralDifference
+from Utils.Math.utils import clamp
 
 class PID:
-    def __init__(self, kp: float, ki: float, kd: float, kaw: float):
+    def __init__(self, kp: float, ki: float, kd: float, kaw: float, min_output: float = -1.0, max_output: float = 1.0):
         self.kp = kp
         self.ki = ki
         self.kd = kd
         self.kaw = kaw
 
+        self.min_output = min_output
+        self.max_output = max_output
+
         self.accum = 0.0
-        self.previous_error = 0.0
+        self.smoothing = CentralDifference()
     
-    def update(self, error: float, dt: float) -> float:
-        # integral and anti-windup
-        self.accum += error * dt
-        self.accum -= self.kaw * self.previous_error * dt
+    def update(self, error: float, dt: float, timewarping: bool = False) -> float:
+        self.smoothing.set_next(error)
+        current_error = self.smoothing.get_curent()
 
         # derivative
-        derivative = (error - self.previous_error) / dt if dt > 0 else 0.0
-        self.previous_error = error
+        derivative = self.smoothing.get_current_derivative(dt)
 
-        # PID output
-        output = (self.kp * error) + (self.ki * self.accum) + (self.kd * derivative)
+        raw_output = (self.kp * current_error) + (self.ki * self.accum) + (self.kd * derivative)
+        output = clamp(raw_output, self.min_output, self.max_output)
+        
+        # anti-windup
+        self.accum += current_error * dt
+        self.accum += (output - raw_output) * self.kaw
+
         return output
 
     def reset(self):
         self.accum = 0.0
-        self.previous_error = 0.0
+
