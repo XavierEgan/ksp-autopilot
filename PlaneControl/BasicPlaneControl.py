@@ -1,9 +1,9 @@
 from Autopilot.AutopilotContext import AutopilotContext
 from Utils.Math.PID import PID
-from Utils.Math.utils import clamp
+from Utils.Math.utils import clamp, GRAVITY_EARTH
 from Utils.PlaneCharacteristics import PlaneCharacteristics
 from Utils.AutopilotConfigs import AutopilotConfigs
-
+import math
 """
 controls:
     Turn Rate D/s
@@ -16,7 +16,6 @@ class BasicPlaneControl:
         self.roll_pid = PID(**plane_characteristics.roll_pid_gains)
         self.speed_pid = PID(**plane_characteristics.speed_pid_gains)
 
-        self.turn_rate_pid = PID(**autopilot_configs.turn_rate_pid_gains)
         self.ascend_rate_pid = PID(**autopilot_configs.ascend_rate_pid_gains)
 
         self.max_bank_angle_deg = plane_characteristics.max_bank_angle_deg
@@ -25,18 +24,16 @@ class BasicPlaneControl:
         self.max_ascend_rate_mps = autopilot_configs.max_ascend_rate_mps
         self.max_speed_mps = plane_characteristics.max_speed_mps
 
-        self.desired_turn_rate_dps = 3.0
+        self.desired_turn_rate_dps = -3.0
         self.desired_ascend_rate_mps = 0.0
-        self.desired_speed_mps = 100.0
+        self.desired_speed_mps = 200.0
 
     def update(self, dt: float, context: AutopilotContext):
         plane_connection = context.plane_connection
 
         # turn rate control
-        current_turn_rate_dps = plane_connection.get_turn_rate_dps(dt)
-        turn_rate_error = self.desired_turn_rate_dps - current_turn_rate_dps
-        desired_roll = self.turn_rate_pid.update(turn_rate_error, dt)
-        desired_roll = desired_roll * self.max_bank_angle_deg
+        desired_bank = math.degrees(math.atan(plane_connection.get_speed() * math.radians(self.desired_turn_rate_dps) / GRAVITY_EARTH))
+        desired_bank = clamp(desired_bank, -self.max_bank_angle_deg, self.max_bank_angle_deg)
 
         # speed control
         current_speed = plane_connection.get_speed()
@@ -57,7 +54,7 @@ class BasicPlaneControl:
 
         # roll
         current_roll = plane_connection.get_roll()
-        roll_error = desired_roll - current_roll
+        roll_error = desired_bank - current_roll
         roll_control = self.roll_pid.update(roll_error, dt)
 
         # apply controls

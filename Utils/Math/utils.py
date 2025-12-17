@@ -4,3 +4,5 @@ def cyclic_error(desired_angle: float, current_angle: float, period: float = 360
 
 def clamp(value: float, min_value: float, max_value: float) -> float:
     return max(min_value, min(value, max_value))
+
+GRAVITY_EARTH = 9.81  # m/s^2

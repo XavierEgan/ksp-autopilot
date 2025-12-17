@@ -22,7 +22,7 @@ BASIC_PLANE_CONTROL:
 OVERALL_CONTROL_VIEW:
     this is a view of the control loops
 
-        Localiser -> Turn Rate -> Roll
+        Track + localiser -> Turn Rate -> Roll
         Track -> Turn Rate -> Roll
         Altitude -> Asc/Desc Rate -> Pitch
         Flare -> Asc/Desc Rate -> Pitch

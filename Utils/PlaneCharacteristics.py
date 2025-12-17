@@ -14,8 +14,8 @@ class PlaneCharacteristics:
             "ki" : 0.15,
             "kd" : 0.02,
             "kaw": 2.0,
-            "min_output" : -0.6,
-            "max_output" : 0.6
+            "min_output" : -1.0,
+            "max_output" : 1.0
         }
         self.roll_pid_gains = {
             "kp" : 0.2,
@@ -31,7 +31,7 @@ class PlaneCharacteristics:
             "kaw": 1.0
         }
 
-        self.max_bank_angle_deg = 30.0
+        self.max_bank_angle_deg = 40.0
         self.max_pitch_angle_deg = 10.0
 
         self.max_speed_mps = 250.0

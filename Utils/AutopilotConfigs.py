@@ -6,12 +6,6 @@ class AutopilotConfigs:
     def __init__(self):
         self.version = "1.0"
 
-        self.turn_rate_pid_gains = {
-            "kp" : 0.5,
-            "ki" : 0.0,
-            "kd" : 0.1,
-            "kaw": 1.0
-        }
         self.ascend_rate_pid_gains = {
             "kp" : 0.03,
             "ki" : 0.01,
