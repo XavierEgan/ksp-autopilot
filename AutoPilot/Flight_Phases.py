@@ -24,6 +24,7 @@ class FlightPhase(Enum):
     DEROTATION = 7
     ROLLOUT = 8
     FINISHED = 9
+    TESTING = 10
 
 """
 Base class for Flight Phase to inherit from
@@ -312,3 +313,23 @@ class Rollout(FlightPhaseBase):
         self.vessel.control.brakes = True
         self.plane_controller_manager.maintain_centerline_on_ground_controller.runway = self.flight_params.arrival_runway
         self.plane_controller_manager.maintain_centerline_on_ground_controller.update(delta_time)
+    
+class Testing(FlightPhaseBase):
+    def should_transition(self) -> bool:
+        return False
+    
+    def next_phase(self) -> FlightPhase:
+        return FlightPhase.FINISHED
+    
+    def on_enter(self):
+        print("Entering Testing Phase")
+    
+    def update(self, delta_time: float):
+        self.plane_controller_manager.altitude_controller.desired_altitude = 2000.0
+        self.plane_controller_manager.auto_throttle.desired_speed = 200.0
+        self.plane_controller_manager.attitude_controller.desired_roll = 0.0
+        self.plane_controller_manager.heading_controller.desired_heading = 0.0
+
+        self.plane_controller_manager.altitude_controller.update(delta_time)
+        self.plane_controller_manager.auto_throttle.update(delta_time)
+        self.plane_controller_manager.heading_controller.update(delta_time)

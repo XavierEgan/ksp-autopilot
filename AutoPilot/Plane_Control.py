@@ -1,5 +1,5 @@
-from Utils.PID import PID, ForwardPID, PID_IntegralWindupMitigation
-from Utils.PID2 import PID2, make_pid_ziegler_nichols, make_pid_manual
+from Utils.PID import PID, ForwardPID
+from Utils.PID2 import PID2, make_pid_manual
 from Utils.Axis_Controller import AxisController
 from Utils.Math import LatLong, clamp, cyclic_error
 from krpc.services.spacecenter import Vessel
@@ -15,14 +15,14 @@ class AttitudeController:
         # self.pitch_pid: PID2 = make_pid_manual(kp=1/30, ki=1/50, kd=1/50, output_min=-1, output_max=1)
         # self.precise_pitch_pid: PID2 = make_pid_manual(kp=1/15, ki=1/4, kd=1/20, output_min=-1, output_max=1)
 
-        self.pitch_axis_controller: AxisController = AxisController(
-            pid=make_pid_ziegler_nichols(ku=0.94099, tu=0.62, output_min=-1, output_max=1, control_type='some overshoot'),
-            reference_airspeed=160.0
+        self.pitch_axis_controller = AxisController(
+            pid=make_pid_manual(kp=1/10, ki=1/30, kd=1/50, kaw=1/10, output_min=-1, output_max=1),
+            reference_airspeed=200.0
         )
 
         self.roll_axis_controller = AxisController(
-            pid=make_pid_ziegler_nichols(ku=0.91266, tu=1.36, output_min=-1, output_max=1, control_type='some overshoot'),
-            reference_airspeed=170.0
+            pid=make_pid_manual(kp=1/15, ki=0, kd=1/50, kaw=0, output_min=-1, output_max=1),
+            reference_airspeed=200.0
         )
 
         self.desired_pitch = 0.0
@@ -87,8 +87,7 @@ class AltitudeController:
         self.desired_altitude = 0.0
         
         # i tried to do this with ziegler nichols but it does not work well
-        self.altitude_pid: PID2 = make_pid_manual(kp=1/30, ki=1/80, kd=1/50, output_min=-1, output_max=1)
-        self.precise_pid: PID2 = make_pid_manual(kp=1/10, ki=1/40, kd=1/30, output_min=-1, output_max=1)
+        self.altitude_pid: PID2 = make_pid_manual(kp=1/15, ki=0, kd=1/40, kaw=1, output_min=-1, output_max=1)
 
         self.max_pitch = 10.0 # can be changed
         self.attitude_controller = attitude_controller
@@ -101,10 +100,7 @@ class AltitudeController:
 
         altitude_error = self.desired_altitude - current_altitude
 
-        if precise:
-            pitch_control = self.precise_pid.get_control(altitude_error, delta_time)
-        else:
-            pitch_control = self.altitude_pid.get_control(altitude_error, delta_time)
+        pitch_control = self.altitude_pid.update(altitude_error, delta_time)
 
 
         desired_pitch = pitch_control * self.max_pitch
@@ -122,7 +118,7 @@ class HeadingController:
 
         self.desired_heading = 0.0
 
-        self.roll_pid: PID2 = make_pid_manual(kp=1/20, ki=1/40, kd=1/40, output_min=-1, output_max=1)
+        self.roll_pid: PID2 = make_pid_manual(kp=1/5, ki=0, kd=0, kaw=0, output_min=-1, output_max=1)
         self.max_bank_angle = 30.0
 
     def update(self, delta_time: float):
@@ -131,7 +127,7 @@ class HeadingController:
 
         heading_error = cyclic_error(self.desired_heading, current_heading)
 
-        roll_control = self.roll_pid.get_control(heading_error, delta_time)
+        roll_control = self.roll_pid.update(heading_error, delta_time)
         desired_roll = roll_control * self.max_bank_angle
 
         self.attitude_controller.desired_roll = desired_roll
@@ -201,14 +197,14 @@ class LocaliserController:
         self.heading_controller = heading_controller
         self.runway = runway
 
-        self.localiser_pid = PID(1/200, 1/25, 0, 0, -1, 1)
+        self.localiser_pid: PID2 = make_pid_manual(kp=1/400, ki=0, kd=0, kaw=0, output_min=-1, output_max=1)
         self.max_heading_offset = 40.0 # degrees
 
     def update(self, delta_time: float):
         plane_latlong = LatLong.get_plane_latlong(self.vessel)
         cross_track_error = self.runway.cross_track_error(plane_latlong)
 
-        heading_offset_control = self.localiser_pid.get_control(cross_track_error, delta_time)
+        heading_offset_control = self.localiser_pid.update(cross_track_error, delta_time)
         heading_offset = heading_offset_control * self.max_heading_offset
 
         self.heading_controller.desired_heading = (self.runway.line.heading + heading_offset) % 360.0

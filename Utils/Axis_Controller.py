@@ -17,5 +17,5 @@ class AxisController:
         airspeed_factor = self.reference_airspeed_squared / (current_airspeed * current_airspeed) if current_airspeed != 0 else 1.0
         airspeed_factor = clamp(airspeed_factor, MIN_AIRSPEED_FACTOR, MAX_AIRSPEED_FACTOR)
 
-        raw_output = self.pid.get_control(error, delta_time)
+        raw_output = self.pid.update(error, delta_time)
         return raw_output * airspeed_factor

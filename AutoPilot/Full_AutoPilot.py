@@ -16,7 +16,8 @@ class FullAutoPilot:
             FlightPhase.FINAL: Final(self.context),
             FlightPhase.FLARE: Flare(self.context),
             FlightPhase.DEROTATION: Derotation(self.context),
-            FlightPhase.ROLLOUT: Rollout(self.context)
+            FlightPhase.ROLLOUT: Rollout(self.context),
+            FlightPhase.TESTING: Testing(self.context),
         }
 
         self.phase_controller:FlightPhaseBase = self.phase_controllers[FlightPhase.PRE_LAUNCH]

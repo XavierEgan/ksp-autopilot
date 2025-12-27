@@ -12,7 +12,7 @@ def main() -> None:
     )
 
     autopilot = FullAutoPilot(AutoPilotContext(flight_params))
-    autopilot.phase_controller = autopilot.phase_controllers[FlightPhase.PRE_LAUNCH]
+    autopilot.phase_controller = autopilot.phase_controllers[FlightPhase.FINAL]
 
     
     while True:
