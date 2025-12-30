@@ -30,8 +30,9 @@ class FlightPathParams:
     landing_speed_mps: float
 
     flare_altitude_m: float
-    flare_duration_s: float
+    flare_sink_rate: float
     derotation_time_s: float
+    derotation_degrees: float
 
 """
 put in all the params and get a flight path, if values are not included then reasonable defaults are used
@@ -42,24 +43,25 @@ def generateFlightPath(
 
         rotation_speed_mps: float = 80,
         rotation_length_s: float = 8,
-        rotation_pitch_deg: float = 20,
+        rotation_pitch_deg: float = 10,
 
         climb_pitch_deg: float = 10,
-        safe_turn_altitude_m: float = 250,
+        safe_turn_altitude_m: float = 500,
         cruise_altitude_m: float = 10000,
         cruise_speed_mps: float = 220,
         descent_start_distance_m: float = 50_000,
         
         final_length_m: float = 25_000,
         final_altitude_m: float = 2000,
-        final_speed_mps: float = 150,
+        final_speed_mps: float = 160,
         flaps_deploy_speed_mps: float = 100,
         landing_gear_deploy_distance_m: float = 5000,
         landing_speed_mps: float = 60,
 
         flare_altitude_m: float = 15,
-        flare_duration_s: float = 10,
-        derotation_time_s: float = 10
+        flare_sink_rate: float = 1,  # m/s
+        derotation_time_s: float = 10,
+        derotation_degrees: float = -3
         
 ) -> FlightPathParams:
     final_begin_waypoint: LatLong = arrival_runway.get_point_at_distance(-final_length_m)
@@ -88,7 +90,8 @@ def generateFlightPath(
         landing_speed_mps=landing_speed_mps,
 
         flare_altitude_m=flare_altitude_m,
-        flare_duration_s=flare_duration_s,
+        flare_sink_rate=flare_sink_rate,
 
-        derotation_time_s=derotation_time_s
+        derotation_time_s=derotation_time_s,
+        derotation_degrees=derotation_degrees
     )

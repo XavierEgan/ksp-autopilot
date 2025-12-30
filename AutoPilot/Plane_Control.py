@@ -1,3 +1,4 @@
+from Utils.Flight_Path_Params import FlightPathParams
 from Utils.PID import PID, ForwardPID
 from Utils.PID2 import PID2, make_pid_manual
 from Utils.Axis_Controller import AxisController
@@ -21,7 +22,7 @@ class AttitudeController:
         )
 
         self.roll_axis_controller = AxisController(
-            pid=make_pid_manual(kp=1/15, ki=0, kd=1/50, kaw=0, output_min=-1, output_max=1),
+            pid=make_pid_manual(kp=1/40, ki=0, kd=1/80, kaw=0, output_min=-1, output_max=1),
             reference_airspeed=200.0
         )
 
@@ -60,7 +61,7 @@ Controls the engine throttle to maintain a desired speed
 """
 class AutoThrottle:
     def __init__(self, vessel: Vessel):
-        self.thrust_pid = ForwardPID(1/50, 1/20, 0, 0, 0, 1)
+        self.thrust_pid: PID2 = make_pid_manual(kp=1/20, ki=0, kd=0, kaw=0)
         self.desired_speed = 0.0
 
         self.vessel = vessel
@@ -69,27 +70,28 @@ class AutoThrottle:
         # orbit reference frame because surface moves with craft so speed is always 0
         reference_frame = self.vessel.orbit.body.reference_frame
         current_speed = self.vessel.flight(reference_frame).speed
-        speed_error = self.desired_speed - current_speed
+        error = self.desired_speed - current_speed
 
         drag_vec = self.vessel.flight(reference_frame).drag
         drag_magnitude = (drag_vec[0]**2 + drag_vec[1]**2 + drag_vec[2]**2) ** 0.5
         max_producable_thrust = self.vessel.available_thrust
-        predictive_value = clamp(drag_magnitude / max_producable_thrust if max_producable_thrust != 0 else 0, 0, 1)
+        predictive_value: float = clamp(drag_magnitude / max_producable_thrust if max_producable_thrust != 0 else 0, 0, 1)
 
-        throttle_control = self.thrust_pid.get_control(speed_error, delta_time, predictive_value=predictive_value)
+        throttle_control = clamp(self.thrust_pid.update(error, delta_time) + predictive_value, 0.0, 1.0)
         self.vessel.control.throttle = throttle_control
 
 """
 Controls altitude by adjusting pitch
 """
 class AltitudeController:
-    def __init__(self, vessel: Vessel, attitude_controller: AttitudeController):
+    def __init__(self, vessel: Vessel, attitude_controller: AttitudeController, flight_params: FlightPathParams):
         self.desired_altitude = 0.0
         
         # i tried to do this with ziegler nichols but it does not work well
         self.altitude_pid: PID2 = make_pid_manual(kp=1/15, ki=0, kd=1/40, kaw=1, output_min=-1, output_max=1)
 
-        self.max_pitch = 10.0 # can be changed
+        self.max_pitch = flight_params.climb_pitch_deg
+        self.min_pitch = -flight_params.climb_pitch_deg
         self.attitude_controller = attitude_controller
         self.vessel = vessel
     
@@ -197,7 +199,7 @@ class LocaliserController:
         self.heading_controller = heading_controller
         self.runway = runway
 
-        self.localiser_pid: PID2 = make_pid_manual(kp=1/400, ki=0, kd=0, kaw=0, output_min=-1, output_max=1)
+        self.localiser_pid: PID2 = make_pid_manual(kp=1/1000, ki=0, kd=0, kaw=0, output_min=-1, output_max=1)
         self.max_heading_offset = 40.0 # degrees
 
     def update(self, delta_time: float):
@@ -209,3 +211,15 @@ class LocaliserController:
 
         self.heading_controller.desired_heading = (self.runway.line.heading + heading_offset) % 360.0
         self.heading_controller.update(delta_time)
+
+class FlareController:
+    def __init__(self, vessel: Vessel, attitude_controller: AttitudeController, flight_params: FlightPathParams):
+        self.vessel = vessel
+        self.attitude_controller = attitude_controller
+        self.flight_params = flight_params
+        
+        self.flare_pid: PID2 = make_pid_manual(kp=1/5, ki=0, kd=0, kaw=0, output_min=-1, output_max=1)
+        self.max_flare_pitch = 5.0  # degrees
+    
+    def update(self, delta_time: float):
+        pass

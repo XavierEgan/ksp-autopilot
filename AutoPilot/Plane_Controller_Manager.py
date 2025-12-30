@@ -8,7 +8,7 @@ class PlaneControllerManager:
         self.attitude_controller = AttitudeController(vessel)
         self.auto_throttle = AutoThrottle(vessel)
         self.heading_controller = HeadingController(vessel, self.attitude_controller)
-        self.altitude_controller = AltitudeController(vessel, self.attitude_controller)
+        self.altitude_controller = AltitudeController(vessel, self.attitude_controller, flight_params)
         self.ground_heading_controller = GroundHeadingController(vessel, self.attitude_controller)
         self.maintain_centerline_on_ground_controller = MaintainCenterlineOnGroundController(vessel, self.ground_heading_controller)
         self.localiser_controller = LocaliserController(vessel, self.heading_controller, flight_params.arrival_runway)
