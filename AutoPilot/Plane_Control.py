@@ -5,6 +5,7 @@ from Utils.Axis_Controller import AxisController
 from Utils.Math import LatLong, clamp, cyclic_error
 from krpc.services.spacecenter import Vessel
 from Utils.Runway import Runway
+from Utils.Telemetry import Telemetry
 
 """
 Controls roll and pitch and thrust using 2 PIDs
@@ -213,13 +214,22 @@ class LocaliserController:
         self.heading_controller.update(delta_time)
 
 class FlareController:
-    def __init__(self, vessel: Vessel, attitude_controller: AttitudeController, flight_params: FlightPathParams):
+    def __init__(self,vessel: Vessel, telemetry: Telemetry, attitude_controller: AttitudeController, flight_params: FlightPathParams):
         self.vessel = vessel
+        self.telemetry = telemetry
         self.attitude_controller = attitude_controller
         self.flight_params = flight_params
         
-        self.flare_pid: PID2 = make_pid_manual(kp=1/5, ki=0, kd=0, kaw=0, output_min=-1, output_max=1)
-        self.max_flare_pitch = 5.0  # degrees
+        self.flare_pid: PID2 = make_pid_manual(kp=1/5, ki=1/20, kd=1/10, kaw=1/50, output_min=-1, output_max=1) # controls sink rate
+        
     
-    def update(self, delta_time: float):
-        pass
+    def update(self, delta_time: float, setpoint_control: float = 0.0):
+        cur_sink_rate = self.telemetry.get_vertical_speed()
+        desired_sink_rate = -self.flight_params.flare_sink_rate_mps
+        sink_rate_error = desired_sink_rate - cur_sink_rate
+
+        # print(f"Sink Rate Error: {sink_rate_error}, current sink rate: {cur_sink_rate}, desired sink rate: {desired_sink_rate}")
+
+        pitch_control = self.flare_pid.update(sink_rate_error, delta_time) + setpoint_control
+
+        self.vessel.control.pitch = pitch_control

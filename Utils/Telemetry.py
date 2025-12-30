@@ -29,6 +29,12 @@ class Telemetry:
     def get_pitch(self) -> float:
         pitch = self.vessel.flight().pitch
         return pitch
+    
+    def is_grounded(self) -> bool:
+        return self.vessel.situation.name in ['landed', 'splashed']
+    
+    def get_vertical_speed(self) -> float:
+        return self.vessel.flight(self.vessel.orbit.body.reference_frame).vertical_speed
 
     def get_time(self) -> float:
         return self.space_center.ut

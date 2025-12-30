@@ -1,10 +1,11 @@
-from AutoPilot.Plane_Control import AttitudeController, AutoThrottle, AltitudeController, HeadingController, GroundHeadingController, MaintainCenterlineOnGroundController, LocaliserController
+from AutoPilot.Plane_Control import AttitudeController, AutoThrottle, AltitudeController, FlareController, HeadingController, GroundHeadingController, MaintainCenterlineOnGroundController, LocaliserController
 from Utils.Flight_Path_Params import FlightPathParams
+from Utils.Telemetry import Telemetry
 
 from krpc.services.spacecenter import Vessel
 
 class PlaneControllerManager:
-    def __init__(self, vessel: Vessel, flight_params: FlightPathParams):
+    def __init__(self, vessel: Vessel, flight_params: FlightPathParams, telemetry: Telemetry) -> None:
         self.attitude_controller = AttitudeController(vessel)
         self.auto_throttle = AutoThrottle(vessel)
         self.heading_controller = HeadingController(vessel, self.attitude_controller)
@@ -12,3 +13,4 @@ class PlaneControllerManager:
         self.ground_heading_controller = GroundHeadingController(vessel, self.attitude_controller)
         self.maintain_centerline_on_ground_controller = MaintainCenterlineOnGroundController(vessel, self.ground_heading_controller)
         self.localiser_controller = LocaliserController(vessel, self.heading_controller, flight_params.arrival_runway)
+        self.flare_controller = FlareController(vessel, telemetry, self.attitude_controller, flight_params)

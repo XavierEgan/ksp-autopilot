@@ -30,7 +30,7 @@ class FlightPathParams:
     landing_speed_mps: float
 
     flare_altitude_m: float
-    flare_sink_rate: float
+    flare_sink_rate_mps: float
     derotation_time_s: float
     derotation_degrees: float
 
@@ -59,8 +59,8 @@ def generateFlightPath(
         landing_speed_mps: float = 60,
 
         flare_altitude_m: float = 15,
-        flare_sink_rate: float = 1,  # m/s
-        derotation_time_s: float = 10,
+        flare_sink_rate_mps: float = 1,
+        derotation_time_s: float = 5,
         derotation_degrees: float = -3
         
 ) -> FlightPathParams:
@@ -90,7 +90,7 @@ def generateFlightPath(
         landing_speed_mps=landing_speed_mps,
 
         flare_altitude_m=flare_altitude_m,
-        flare_sink_rate=flare_sink_rate,
+        flare_sink_rate_mps=flare_sink_rate_mps,
 
         derotation_time_s=derotation_time_s,
         derotation_degrees=derotation_degrees

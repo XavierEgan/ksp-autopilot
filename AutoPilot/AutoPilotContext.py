@@ -9,9 +9,9 @@ class AutoPilotContext:
 
         self.flight_params = flight_params
 
-        self.plane_controller_manager = PlaneControllerManager(self.vessel, flight_params=self.flight_params)
-
         self.telemetry = Telemetry(self.conn)
+
+        self.plane_controller_manager = PlaneControllerManager(self.vessel, flight_params=self.flight_params, telemetry=self.telemetry)
     
     def connect(self) -> None:
         self.conn = krpc.connect(name = 'Full AutoPilot')

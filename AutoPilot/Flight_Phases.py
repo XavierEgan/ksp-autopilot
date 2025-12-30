@@ -129,6 +129,7 @@ class ClimbAndCruise(FlightPhaseBase):
         # transition if were within descent_start_distance_m of the final start point
         close_to_descent: bool = self.telemetry.get_latlong().distance_to(self.flight_params.final_begin_waypoint) <= self.flight_params.descent_start_distance_m
         adequate_altitude: bool = self.telemetry.get_altitude() >= self.flight_params.cruise_altitude_m / 3
+
         return close_to_descent and adequate_altitude
     
     def next_phase(self) -> FlightPhase:
@@ -143,9 +144,6 @@ class ClimbAndCruise(FlightPhaseBase):
 
         # retract flaps
         self.vessel.control.set_action_group(1, False)
-
-        # variable to keep track of how long we have had to reduce pitch to maintain speed
-
 
     def update(self, delta_time: float):
         # only turn if we are high enough
@@ -177,9 +175,6 @@ class Descent(FlightPhaseBase):
     def on_enter(self):
         print("Entering Descent Phase")
         reset_controlls(self.vessel)
-
-        self.plane_controller_manager.altitude_controller.desired_altitude = self.flight_params.final_altitude_m
-        self.plane_controller_manager.auto_throttle.desired_speed = self.flight_params.cruise_speed_mps
 
         self.descent_start_distance: float = self.telemetry.get_latlong().distance_to(self.flight_params.final_begin_waypoint)
         self.descent_start_altitude:float = self.telemetry.get_altitude()
@@ -265,41 +260,32 @@ class Final(FlightPhaseBase):
 
 class Flare(FlightPhaseBase):
     def should_transition(self) -> bool:
-        delta = self.flare_timer.fraction_complete()
-        return delta >= 1.0
+        return self.telemetry.is_grounded()
     
     def next_phase(self) -> FlightPhase:
         return FlightPhase.DEROTATION
     
     def on_enter(self):
         print("Entering Flare Phase")
-        self.flare_timer = CountDownTimer(self.flight_params.flare_duration_s)
-        self.start_throttle = self.vessel.control.throttle
 
-        self.plane_controller_manager.heading_controller.desired_heading = self.flight_params.arrival_runway.line.heading
-        self.plane_controller_manager.heading_controller.max_bank_angle = 3.0
+        self.setpoint_pitch: float = self.vessel.control.pitch
 
         reset_controlls(self.vessel)
-
-    # returns float from 0 to 1 representing the flare pitch curve
-    def flare_pitch_curve(self, fraction_of_flare_left: float) -> float:
-        return fraction_of_flare_left ** 2 + .01
     
     def update(self, delta_time: float):
-        self.flare_timer.update(delta_time)
-        fraction_of_flare_left = 1 - self.flare_timer.fraction_complete()
-        height_to_flare = self.flight_params.flare_altitude_m
-        desired_height = height_to_flare * self.flare_pitch_curve(fraction_of_flare_left) + self.flight_params.arrival_runway.threashold_altitude
+        self.plane_controller_manager.flare_controller.update(delta_time, setpoint_control=self.setpoint_pitch)
 
-        self.plane_controller_manager.altitude_controller.desired_altitude = desired_height
+        # maintain speed
+        self.plane_controller_manager.auto_throttle.desired_speed = self.flight_params.landing_speed_mps
+        self.plane_controller_manager.auto_throttle.update(delta_time)
 
-        self.vessel.control.throttle = clamp(fraction_of_flare_left, 0, 1) * self.start_throttle
-        self.plane_controller_manager.altitude_controller.update(delta_time, precise=True)
-        self.plane_controller_manager.heading_controller.update(delta_time)
+        # maintain runway centerline
+        self.plane_controller_manager.localiser_controller.runway = self.flight_params.arrival_runway
+        self.plane_controller_manager.localiser_controller.update(delta_time)
         
 class Derotation(FlightPhaseBase):
     def should_transition(self) -> bool:
-        return True
+        return self.derotation_timer.finished
     
     def next_phase(self) -> FlightPhase:
         return FlightPhase.ROLLOUT
@@ -309,12 +295,13 @@ class Derotation(FlightPhaseBase):
         self.vessel.control.throttle = 0.0
         self.derotation_timer = CountDownTimer(self.flight_params.derotation_time_s)
         self.start_angle = self.vessel.flight(self.vessel.surface_reference_frame).pitch
+        self.end_angle = self.flight_params.derotation_degrees
     
     def update(self, delta_time: float):
         self.derotation_timer.update(delta_time)
-        delta = self.derotation_timer.elapsed_s / self.flight_params.derotation_time_s
+        delta = self.derotation_timer.fraction_complete()
 
-        desired_pitch = self.start_angle * (1 - delta)
+        desired_pitch = self.start_angle * (1 - delta) + self.end_angle * delta
         self.plane_controller_manager.attitude_controller.desired_pitch = desired_pitch
         self.plane_controller_manager.attitude_controller.update(delta_time)
 
@@ -345,11 +332,11 @@ class Testing(FlightPhaseBase):
     
     def on_enter(self):
         print("Entering Testing Phase")
+        self.vessel.control.set_action_group(1, True)
     
     def update(self, delta_time: float):
-        self.plane_controller_manager.altitude_controller.desired_altitude = 2000.0
-        self.plane_controller_manager.auto_throttle.desired_speed = 200.0
-        self.plane_controller_manager.attitude_controller.desired_roll = 0.0
+        self.plane_controller_manager.altitude_controller.desired_altitude = 100.0
+        self.plane_controller_manager.auto_throttle.desired_speed = 60.0
         self.plane_controller_manager.heading_controller.desired_heading = 0.0
 
         self.plane_controller_manager.altitude_controller.update(delta_time)
