@@ -141,3 +141,18 @@ def cyclic_error(desired_angle: float, current_angle: float, period: float = 360
 
 def clamp(value: float, min_value: float, max_value: float) -> float:
     return max(min_value, min(value, max_value))
+
+"""
+Linear interpolation between start and end by t (0.0 to 1.0), t is clamped
+"""
+def lerp(start: float, end: float, t: float) -> float:
+    t = clamp(t, 0.0, 1.0)
+    return start + t * (end - start)
+
+"""
+Returns t (0.0 to 1.0) given x between x_start and x_end, output is clamped
+"""
+def inverse_lerp(x_start: float, x_end: float, x: float) -> float:
+    t = (x - x_start) / (x_end - x_start)
+    t = clamp(t, 0.0, 1.0)
+    return t

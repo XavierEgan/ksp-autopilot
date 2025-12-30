@@ -1,8 +1,9 @@
 from enum import Enum
 from abc import ABC, abstractmethod
-from Utils.Math import clamp, LatLong
-from Utils.Timer import Timer
+from Utils.Math import clamp, LatLong, inverse_lerp, lerp
+from Utils.Timer import CountDownTimer
 from AutoPilot.AutoPilotContext import AutoPilotContext
+from Utils.Logging import Logger
 
 from krpc.services.spacecenter import Vessel
 
@@ -68,8 +69,17 @@ class PreLaunch(FlightPhaseBase):
     
     def on_enter(self):
         print("Entering Pre-Launch Phase")
+        self.wait_timer = CountDownTimer(3.0)  # wait for 3 seconds before takeoff, to let the craft settle down
     
     def update(self, delta_time: float):
+        self.wait_timer.update(delta_time)
+        if not self.wait_timer.finished:
+            return
+        
+        if self.wait_timer.just_finished():
+            # store the pitch we need to derotate down to later when landing
+            self.flight_params.derotation_degrees = self.telemetry.get_pitch()
+
         self.vessel.control.throttle = 1.0
         self.vessel.control.activate_next_stage()
 
@@ -94,14 +104,14 @@ class TakeoffRoll(FlightPhaseBase):
 class Rotation(FlightPhaseBase):
     def should_transition(self) -> bool:
         # if rotation duration exceeded then transition
-        return self.rotation_timer.finished and self.telemetry.get_altitude() > 50
+        return self.rotation_timer.finished and self.telemetry.get_altitude() - self.flight_params.depature_runway.threashold_altitude > 50
     
     def next_phase(self) -> FlightPhase:
         return FlightPhase.CLIMB_AND_CRUISE
     
     def on_enter(self):
         print("Entering Rotation Phase")
-        self.rotation_timer = Timer(self.flight_params.rotation_length_s)
+        self.rotation_timer = CountDownTimer(self.flight_params.rotation_length_s)
         self.plane_controller_manager.maintain_centerline_on_ground_controller.runway = self.flight_params.depature_runway
     
     def update(self, delta_time: float):
@@ -116,10 +126,10 @@ class Rotation(FlightPhaseBase):
 
 class ClimbAndCruise(FlightPhaseBase):
     def should_transition(self) -> bool:
-        # if we get within 50 meters of cruise altitude then transition
-        current_altitude = self.telemetry.get_altitude()
-
-        return abs(self.flight_params.cruise_altitude_m - current_altitude) <= 50
+        # transition if were within descent_start_distance_m of the final start point
+        close_to_descent: bool = self.telemetry.get_latlong().distance_to(self.flight_params.final_begin_waypoint) <= self.flight_params.descent_start_distance_m
+        adequate_altitude: bool = self.telemetry.get_altitude() >= self.flight_params.cruise_altitude_m / 3
+        return close_to_descent and adequate_altitude
     
     def next_phase(self) -> FlightPhase:
         return FlightPhase.DESCENT
@@ -134,19 +144,26 @@ class ClimbAndCruise(FlightPhaseBase):
         # retract flaps
         self.vessel.control.set_action_group(1, False)
 
+        # variable to keep track of how long we have had to reduce pitch to maintain speed
+
+
+    def update(self, delta_time: float):
+        # only turn if we are high enough
+        high_enough_to_turn: bool = self.telemetry.get_altitude() > self.flight_params.safe_turn_altitude_m
+        if high_enough_to_turn:
+            desired_heading = self.telemetry.get_latlong().heading_to(self.flight_params.final_begin_waypoint)
+            self.plane_controller_manager.heading_controller.desired_heading = desired_heading
+        else:
+            self.plane_controller_manager.heading_controller.desired_heading = self.flight_params.depature_runway.line.heading
+            
+        
         self.plane_controller_manager.altitude_controller.desired_altitude = self.flight_params.cruise_altitude_m
         self.plane_controller_manager.altitude_controller.max_pitch = self.flight_params.climb_pitch_deg
         self.plane_controller_manager.auto_throttle.desired_speed = self.flight_params.cruise_speed_mps
 
-    def update(self, delta_time: float):
-        # only turn if we are high enough
-        if self.telemetry.get_altitude() > self.flight_params.safe_turn_altitude_m:
-            heading_to_runway = self.telemetry.get_latlong().heading_to(self.flight_params.arrival_runway.line.start)
-            self.plane_controller_manager.heading_controller.desired_heading = heading_to_runway
-            self.plane_controller_manager.heading_controller.update(delta_time)
-
         self.plane_controller_manager.altitude_controller.update(delta_time)
         self.plane_controller_manager.auto_throttle.update(delta_time)
+        self.plane_controller_manager.heading_controller.update(delta_time)
 
 class Descent(FlightPhaseBase):
     def should_transition(self) -> bool:
@@ -163,14 +180,30 @@ class Descent(FlightPhaseBase):
 
         self.plane_controller_manager.altitude_controller.desired_altitude = self.flight_params.final_altitude_m
         self.plane_controller_manager.auto_throttle.desired_speed = self.flight_params.cruise_speed_mps
+
+        self.descent_start_distance: float = self.telemetry.get_latlong().distance_to(self.flight_params.final_begin_waypoint)
+        self.descent_start_altitude:float = self.telemetry.get_altitude()
+        self.descent_start_speed: float = self.telemetry.get_speed_relative_to_kerbin()
+    
+    def manage_altitude(self, delta_time: float, lerp_t: float):
+        self.context.plane_controller_manager.altitude_controller.desired_altitude = lerp(self.descent_start_altitude, self.flight_params.final_altitude_m, lerp_t)
+        self.context.plane_controller_manager.altitude_controller.update(delta_time)
+        # Logger.get().log(f"desired altitude: {self.context.plane_controller_manager.altitude_controller.desired_altitude}")
+    
+    def manage_speed(self, delta_time: float, lerp_t: float):
+        self.context.plane_controller_manager.auto_throttle.desired_speed = lerp(self.descent_start_speed, self.flight_params.final_speed_mps, lerp_t)
+        # Logger.get().log(f"desired speed: {self.context.plane_controller_manager.auto_throttle.desired_speed}")
+        self.context.plane_controller_manager.auto_throttle.update(delta_time)
     
     def update(self, delta_time: float):
         heading_to_runway = self.telemetry.get_latlong().heading_to(self.flight_params.final_begin_waypoint)
         self.plane_controller_manager.heading_controller.desired_heading = heading_to_runway
 
-        self.plane_controller_manager.altitude_controller.update(delta_time)
+        lerp_t: float = inverse_lerp(self.descent_start_distance, 0, self.telemetry.get_latlong().distance_to(self.flight_params.final_begin_waypoint))
+        self.manage_altitude(delta_time, lerp_t)
+        self.manage_speed(delta_time, lerp_t)
+
         self.plane_controller_manager.heading_controller.update(delta_time)
-        self.plane_controller_manager.auto_throttle.update(delta_time)
 
 class Final(FlightPhaseBase):
     def should_transition(self) -> bool:
@@ -200,24 +233,13 @@ class Final(FlightPhaseBase):
         if (speed <= self.flight_params.flaps_deploy_speed_mps):
             self.vessel.control.set_action_group(1, True)
         
-    def manage_speed(self, delta_time: float, fraction_of_final_left: float):
-        desired_speed_above_landing_speed = (self.flight_params.cruise_speed_mps - self.flight_params.landing_speed_mps) * fraction_of_final_left
-
-        # TODO: move this ANYWHERE else or use a less hacky method
-        landing_speed_mult_const = .8
-
-        self.plane_controller_manager.auto_throttle.desired_speed = clamp((desired_speed_above_landing_speed + self.flight_params.landing_speed_mps) * landing_speed_mult_const, self.flight_params.landing_speed_mps, self.flight_params.cruise_speed_mps)
-
+    def manage_speed(self, delta_time: float, lerp_t: float):
+        desired_speed = lerp(self.flight_params.final_speed_mps, self.flight_params.landing_speed_mps, lerp_t)
+        self.plane_controller_manager.auto_throttle.desired_speed = desired_speed
         self.plane_controller_manager.auto_throttle.update(delta_time)
     
-    def manage_glideslope(self, delta_time: float, fraction_of_final_left: float):
-        delta_altitude = self.flight_params.final_altitude_m - self.flight_params.arrival_runway.threashold_altitude
-
-        # since its a similar triangle, delta_altitude decreases linearly with distance to runway threshold
-        final_leg_length = self.flight_params.final_begin_waypoint.distance_to(self.flight_params.arrival_runway.line.start)
-        final_leg_length = max(final_leg_length, 1) # prevent div by 0
-
-        desired_altitude = self.flight_params.arrival_runway.threashold_altitude + (delta_altitude * fraction_of_final_left)
+    def manage_glideslope(self, delta_time: float, lerp_t: float):
+        desired_altitude = lerp(self.flight_params.final_altitude_m, self.flight_params.arrival_runway.threashold_altitude, lerp_t)
         self.plane_controller_manager.altitude_controller.desired_altitude = desired_altitude
         self.plane_controller_manager.altitude_controller.update(delta_time)
 
@@ -234,11 +256,11 @@ class Final(FlightPhaseBase):
     
     def update(self, delta_time: float):
         distance_to_runway = self.telemetry.get_latlong().distance_to(self.flight_params.arrival_runway.line.start)
-        fraction_of_final_left = clamp(distance_to_runway / self.flight_params.final_length_m, 0.0, 1.0)
+        t = inverse_lerp(self.flight_params.final_length_m, 0, distance_to_runway)
 
         self.manage_gear_and_flaps()
-        self.manage_speed(delta_time, fraction_of_final_left)
-        self.manage_glideslope(delta_time, fraction_of_final_left)
+        self.manage_speed(delta_time, t)
+        self.manage_glideslope(delta_time, t)
         self.manage_localiser(delta_time)
 
 class Flare(FlightPhaseBase):
@@ -251,7 +273,7 @@ class Flare(FlightPhaseBase):
     
     def on_enter(self):
         print("Entering Flare Phase")
-        self.flare_timer = Timer(self.flight_params.flare_duration_s)
+        self.flare_timer = CountDownTimer(self.flight_params.flare_duration_s)
         self.start_throttle = self.vessel.control.throttle
 
         self.plane_controller_manager.heading_controller.desired_heading = self.flight_params.arrival_runway.line.heading
@@ -285,7 +307,7 @@ class Derotation(FlightPhaseBase):
     def on_enter(self):
         print("Entering Derotation Phase")
         self.vessel.control.throttle = 0.0
-        self.derotation_timer = Timer(self.flight_params.derotation_time_s)
+        self.derotation_timer = CountDownTimer(self.flight_params.derotation_time_s)
         self.start_angle = self.vessel.flight(self.vessel.surface_reference_frame).pitch
     
     def update(self, delta_time: float):
